@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.leuwipanjang.ssh"
+    namespace = "id.co.if.leuwipanjang"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.leuwipanjang.ssh"
+        applicationId = "id.co.if.leuwipanjang"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

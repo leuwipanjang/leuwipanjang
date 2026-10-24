@@ -1,0 +1,54 @@
+===================================================================
+GOOGLE PLAY STORE LISTING METADATA - LEUWIPANJANG
+===================================================================
+
+[1] NAMA APLIKASI (App Name - Maks 30 Karakter):
+Leuwipanjang - SSH Terminal
+
+[2] DESKRIPSI SINGKAT (Short Description - Maks 80 Karakter):
+Klien Remote SSH Android yang cepat, ringan, dengan login Public Key & ANSI.
+
+[3] DESKRIPSI LENGKAP (Full Description - Format Siap Paste ke Play Console):
+Leuwipanjang adalah aplikasi klien remote SSH native Android yang dirancang cepat, ringan, dan profesional seperti Termius untuk DevOps, Sysadmin, dan Pengembang Linux.
+
+Dibangun 100% Native dengan Kotlin dan Android Runtime (ART) murni tanpa bloatware, Leuwipanjang memberikan performa terminal yang responsif, hemat baterai, dan ukuran aplikasi yang sangat minimalis (< 10 MB).
+
+FITUR UTAMA:
+
+🔑 AUTENTIKASI SSH PUBLIC/PRIVATE KEY (KEY VAULT)
+• Built-in Key Pair Generator: Buat kunci Ed25519 (direkomendasikan, cepat & aman) atau RSA 2048/4096-bit langsung di HP Anda.
+• Import Kunci: Paste private key OpenSSH atau PEM/PKCS#8 yang sudah ada.
+• Salin Public Key 1-Ketukan: Salin public key instan untuk ditambahkan ke server remote (~/.ssh/authorized_keys).
+• One-Liner Command: Salin perintah otomatis sekali jalan untuk remote server.
+• SHA-256 Fingerprint: Verifikasi sidik jari kunci OpenSSH standar.
+• Mendukung Private Key dengan enkripsi Passphrase.
+
+🖥️ INTERACTIVE TERMINAL EMULATOR
+• Emulasi ANSI / xterm dengan palette 16 dan 256 warna.
+• Accessory Keys Bar lengkap di atas keyboard: ESC, TAB, CTRL, ALT, Tombol Panah (▲, ▼, ◀, ▶), Pipe (|), Slash (/), Tilde (~), Dash (-), Colon (:), serta shortcut ^C (SIGINT) dan ^D (EOF).
+• Pilihan tema tampilan terminal: Termius Dark, Dracula Cyber, Matrix Green, dan Solarized Dark.
+• Pengaturan ukuran font terminal sesuai kenyamanan mata.
+
+🌐 HOST & SERVER MANAGER
+• Simpan konfigurasi server tak terbatas (Alias, Hostname/IP, Port, Username, Group Tag).
+• Dukungan metode login SSH Key maupun Password.
+• Quick Connect: Hubungkan sesi terminal instan dengan tombol Play langsung dari daftar server.
+
+⚡ QUICK SNIPPETS (COMMAND RUNNER)
+• Simpan dan kelompokkan perintah shell yang sering digunakan (seperti htop, docker ps, free -m, df -h, git pull, restart nginx).
+• Jalankan snippet langsung ke sesi terminal yang sedang aktif tanpa perlu mengetik ulang.
+
+🔒 PRIVASI & KEAMANAN
+• 100% Offline-First: Semua host, kunci privat, dan password hanya disimpan di perangkat lokal Anda.
+• Bebas Iklan dan Tanpa Pelacakan Telemetri pihak ketiga.
+
+-------------------------------------------------------------------
+[4] KATEGORI & RATING KONTEN:
+- Kategori: Tools / Utilities (Alat)
+- Rating Konten: Everyone / Semua Umur
+- Iklan: Tidak mengandung iklan (No Ads)
+
+[5] FORM KEAMANAN DATA (Data Safety Questionnaire):
+- Apakah aplikasi mengumpulkan data pengguna? JAWAB: TIDAK (No data collected).
+- Semua data SSH dan kredensial server disimpan secara lokal di memori aman perangkat pengguna.
+===================================================================

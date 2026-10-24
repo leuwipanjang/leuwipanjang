@@ -1,4 +1,4 @@
-# Proguard rules for LeuwiPanjang SSH
+# Proguard rules for Leuwipanjang
 
 # Keep JSch and dependencies
 -keep class com.jcraft.jsch.** { *; }

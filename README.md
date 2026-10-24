@@ -1,7 +1,7 @@
-# 🚀 LeuwiPanjang - Native Android Remote SSH Client
+# 🚀 Leuwipanjang - Remote Terminal Client
 
 <p align="center">
-  <img src="app/src/main/res/drawable/ic_terminal.xml" width="96" height="96" alt="LeuwiPanjang SSH" />
+  <img src="app/src/main/res/drawable/ic_terminal.xml" width="96" height="96" alt="Leuwipanjang" />
 </p>
 
 <p align="center">
@@ -116,7 +116,7 @@ File output AAB akan berada di:
 
 ## 📖 Cara Menggunakan Fitur Public Key SSH
 
-1. Buka tab **Key Vault** di aplikasi LeuwiPanjang SSH.
+1. Buka tab **Key Vault** di aplikasi Leuwipanjang.
 2. Tap tombol **+ (New Key)** lalu pilih **Generate Key Pair** (pilih **Ed25519**).
 3. Tap **Copy Public Key**.
 4. Di server Linux Anda, tempelkan public key ke file `~/.ssh/authorized_keys`:

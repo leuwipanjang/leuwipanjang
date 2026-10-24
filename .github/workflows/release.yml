@@ -152,7 +152,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tagger.outputs.tag }}
-          name: "LeuwiPanjang SSH ${{ steps.tagger.outputs.tag }}"
+          name: "Leuwipanjang ${{ steps.tagger.outputs.tag }}"
           draft: false
           prerelease: false
           generate_release_notes: true

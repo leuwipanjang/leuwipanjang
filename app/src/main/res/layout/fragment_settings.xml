@@ -72,7 +72,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- About LeuwiPanjang SSH -->
+        <!-- About Leuwipanjang -->
         <com.google.android.material.card.MaterialCardView
             style="@style/Widget.LeuwiPanjang.Card"
             android:layout_width="match_parent"
@@ -88,7 +88,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="About LeuwiPanjang"
+                    android:text="About Leuwipanjang"
                     android:textColor="@color/primary"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -97,7 +97,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="LeuwiPanjang Remote SSH Terminal v1.0.0\nProfessional, lightweight, and secure Termius-like Android SSH client built with 100% Native Kotlin, JSch 0.2+, and Bouncy Castle."
+                    android:text="Leuwipanjang v1.0.0\nProfessional, lightweight, and secure Termius-like Android terminal client built with 100% Native Kotlin, JSch 0.2+, and Bouncy Castle."
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp" />
 

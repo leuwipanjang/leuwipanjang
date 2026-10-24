@@ -9,8 +9,8 @@
 -dontwarn org.bouncycastle.**
 
 # Keep models for Gson serialization
--keep class id.co.if.leuwipanjang.data.model.** { *; }
--keepclassmembers class id.co.if.leuwipanjang.data.model.** { <fields>; }
+-keep class id.biz.id.leuwipanjang.data.model.** { *; }
+-keepclassmembers class id.biz.id.leuwipanjang.data.model.** { <fields>; }
 
 # Keep AndroidX & Material
 -keep class androidx.appcompat.** { *; }

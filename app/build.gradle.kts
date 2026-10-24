@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "id.co.if.leuwipanjang"
+    namespace = "id.biz.id.leuwipanjang"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "id.co.if.leuwipanjang"
+        applicationId = "id.biz.id.leuwipanjang"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

@@ -75,6 +75,11 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "/META-INF/INDEX.LIST"
             excludes += "/META-INF/io.netty.versions.properties"
+            excludes += "META-INF/versions/**"
+            excludes += "META-INF/OSGI-INF/**"
+            excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+            excludes += "**/OSGI-INF/**"
+            excludes += "META-INF/*.version"
         }
     }
 }

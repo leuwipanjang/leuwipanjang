@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/surface_dark"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="@drawable/ic_arrow_back"
+            app:title="@string/add_key"
+            app:titleTextColor="@color/text_primary" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Mode Selector (Generate vs Import) -->
+            <RadioGroup
+                android:id="@+id/rgKeyMode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/rbGenerate"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:text="@string/generate_key"
+                    android:textColor="@color/text_primary" />
+
+                <RadioButton
+                    android:id="@+id/rbImport"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/import_key"
+                    android:textColor="@color/text_primary" />
+            </RadioGroup>
+
+            <!-- Key Alias -->
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                android:hint="@string/key_alias"
+                app:boxBackgroundColor="@color/surface_card">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etKeyAlias"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textCapWords"
+                    android:text="My Ed25519 Key"
+                    android:textColor="@color/text_primary" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Section: Generate Options -->
+            <LinearLayout
+                android:id="@+id/sectionGenerate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="4dp"
+                    android:text="@string/key_type"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <Spinner
+                    android:id="@+id/spKeyType"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginBottom="14dp"
+                    android:background="@color/surface_card"
+                    android:popupBackground="@color/surface_card" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnGenerateAction"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginBottom="16dp"
+                    android:backgroundTint="@color/surface_card_selected"
+                    android:text="Generate Key Pair Now"
+                    android:textColor="@color/primary"
+                    app:icon="@drawable/ic_key"
+                    app:iconTint="@color/primary" />
+            </LinearLayout>
+
+            <!-- Section: Import Options -->
+            <LinearLayout
+                android:id="@+id/sectionImport"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp"
+                    android:hint="@string/paste_private_key"
+                    app:boxBackgroundColor="@color/surface_card">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etPrivateKeyInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="140dp"
+                        android:fontFamily="monospace"
+                        android:gravity="top|start"
+                        android:inputType="textMultiLine"
+                        android:textColor="@color/text_primary"
+                        android:textSize="12sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+
+            <!-- Generated Public Key Preview Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardKeyPreview"
+                style="@style/Widget.LeuwiPanjang.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Generated Public Key"
+                            android:textColor="@color/primary"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCopyPreviewKey"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/copy_public_key"
+                            android:textColor="@color/primary"
+                            app:icon="@drawable/ic_copy"
+                            app:iconTint="@color/primary" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvPublicKeyPreview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:background="@color/bg_dark"
+                        android:fontFamily="monospace"
+                        android:padding="10dp"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/tvFingerprintPreview"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="monospace"
+                        android:text="SHA256:...."
+                        android:textColor="@color/text_muted"
+                        android:textSize="11sp" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Save Key Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveKey"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:layout_marginBottom="24dp"
+                android:backgroundTint="@color/primary"
+                android:text="Save Key to Vault"
+                android:textColor="@color/bg_dark"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                app:cornerRadius="12dp" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

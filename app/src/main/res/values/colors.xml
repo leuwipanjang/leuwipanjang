@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- LeuwiPanjang Termius Dark Palette -->
+    <color name="bg_dark">#0B0F19</color>
+    <color name="surface_dark">#131B2E</color>
+    <color name="surface_card">#1B2438</color>
+    <color name="surface_card_selected">#24304A</color>
+    <color name="stroke_color">#2A3756</color>
+    <color name="stroke_highlight">#38BDF8</color>
+
+    <!-- Accents -->
+    <color name="primary">#38BDF8</color>
+    <color name="primary_variant">#0284C7</color>
+    <color name="secondary">#6366F1</color>
+    <color name="accent_purple">#A855F7</color>
+    
+    <!-- Functional -->
+    <color name="status_connected">#10B981</color>
+    <color name="status_error">#EF4444</color>
+    <color name="status_warning">#F59E0B</color>
+
+    <!-- Text -->
+    <color name="text_primary">#F8FAFC</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="text_muted">#64748B</color>
+
+    <!-- Terminal -->
+    <color name="terminal_bg">#0F141C</color>
+    <color name="terminal_cursor">#38BDF8</color>
+    <color name="terminal_key_btn_bg">#1E293B</color>
+    <color name="terminal_key_btn_pressed">#334155</color>
+    <color name="terminal_key_text">#E2E8F0</color>
+
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+</resources>

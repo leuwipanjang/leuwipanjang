@@ -1,0 +1,163 @@
+name: Build and Release Android (APK & AAB)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type (patch, minor, major)'
+        required: false
+        default: 'patch'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-release:
+    name: Auto Tag, Build & Release APK / AAB
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine Next Semantic Tag
+        id: tagger
+        run: |
+          # Fetch all tags from remote
+          git fetch --tags --force
+          
+          # Find latest semver tag
+          LATEST_TAG=$(git tag -l "v*" | sort -V | tail -n 1)
+          
+          if [ -z "$LATEST_TAG" ]; then
+            NEW_TAG="v1.0.0"
+            echo "No existing tag found. Starting with $NEW_TAG"
+          else
+            echo "Latest tag found: $LATEST_TAG"
+            VERSION_NO_V=${LATEST_TAG#v}
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NO_V"
+            
+            # Check last commit message for bump hints
+            LAST_COMMIT_MSG=$(git log -1 --pretty=%B)
+            
+            if [[ "$LAST_COMMIT_MSG" =~ (BREAKING|breaking) ]] || [ "${{ github.event.inputs.version_bump }}" == "major" ]; then
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+            elif [[ "$LAST_COMMIT_MSG" =~ (feat|feature) ]] || [ "${{ github.event.inputs.version_bump }}" == "minor" ]; then
+              MINOR=$((MINOR + 1))
+              PATCH=0
+            else
+              PATCH=$((PATCH + 1))
+            fi
+            
+            NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          
+          echo "Computed new tag: $NEW_TAG"
+          echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "NEW_TAG=$NEW_TAG" >> "$GITHUB_ENV"
+
+      - name: Push Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.tagger.outputs.tag }}" -m "Release ${{ steps.tagger.outputs.tag }}"
+          git push origin "${{ steps.tagger.outputs.tag }}"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Make Gradle Wrapper Executable
+        run: chmod +x ./gradlew
+
+      - name: Prepare Signing Keystore
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "Using keystore from secret ANDROID_KEYSTORE_BASE64"
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > app/release.keystore
+            echo "KEYSTORE_PATH=release.keystore" >> "$GITHUB_ENV"
+            echo "KEYSTORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
+            echo "KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+          else
+            echo "No secret keystore provided. Generating a release keystore dynamically..."
+            keytool -genkey -v -keystore app/release.keystore \
+              -alias leuwipanjang \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass leuwipanjang \
+              -keypass leuwipanjang \
+              -dname "CN=LeuwiPanjang, OU=Release, O=LeuwiPanjang, L=Bandung, ST=JawaBarat, C=ID"
+            echo "KEYSTORE_PATH=release.keystore" >> "$GITHUB_ENV"
+            echo "KEYSTORE_PASSWORD=leuwipanjang" >> "$GITHUB_ENV"
+            echo "KEY_ALIAS=leuwipanjang" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=leuwipanjang" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build Release APK & AAB
+        env:
+          KEYSTORE_PATH: ${{ env.KEYSTORE_PATH }}
+          KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ env.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease bundleRelease --stacktrace
+
+      - name: Prepare Release Artifacts
+        run: |
+          mkdir -p release-artifacts
+          
+          # Find APK
+          APK_FILE=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -f "$APK_FILE" ]; then
+            cp "$APK_FILE" "release-artifacts/leuwipanjang-${{ steps.tagger.outputs.tag }}.apk"
+            echo "Copied APK to release-artifacts/leuwipanjang-${{ steps.tagger.outputs.tag }}.apk"
+          else
+            echo "Error: Release APK not found!"
+            exit 1
+          fi
+          
+          # Find AAB
+          AAB_FILE=$(find app/build/outputs/bundle/release -name "*.aab" | head -n 1)
+          if [ -f "$AAB_FILE" ]; then
+            cp "$AAB_FILE" "release-artifacts/leuwipanjang-${{ steps.tagger.outputs.tag }}.aab"
+            echo "Copied AAB to release-artifacts/leuwipanjang-${{ steps.tagger.outputs.tag }}.aab"
+          else
+            echo "Error: Release AAB not found!"
+            exit 1
+          fi
+
+      - name: Upload Artifacts to Workflow Run
+        uses: actions/upload-artifact@v4
+        with:
+          name: leuwipanjang-build-${{ steps.tagger.outputs.tag }}
+          path: release-artifacts/*
+          if-no-files-found: error
+
+      - name: Create GitHub Release and Attach APK & AAB
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tagger.outputs.tag }}
+          name: "LeuwiPanjang SSH ${{ steps.tagger.outputs.tag }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release-artifacts/*.apk
+            release-artifacts/*.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/surface_dark"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/tvDialogKeyAlias"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Key Name"
+        android:textColor="@color/text_primary"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvDialogFingerprint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:fontFamily="monospace"
+        android:text="SHA256:...."
+        android:textColor="@color/text_muted"
+        android:textSize="11sp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="OpenSSH Public Key"
+        android:textColor="@color/primary"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="110dp"
+        android:layout_marginTop="6dp"
+        android:background="@color/bg_dark"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/tvDialogPublicKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+    </ScrollView>
+
+    <!-- Action Buttons -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnDialogCopyKey"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="14dp"
+        android:backgroundTint="@color/primary"
+        android:text="Copy Public Key"
+        android:textColor="@color/bg_dark"
+        android:textStyle="bold"
+        app:cornerRadius="10dp"
+        app:icon="@drawable/ic_copy"
+        app:iconTint="@color/bg_dark" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnDialogCopyOneLiner"
+        style="@style/Widget.Material3.Button.TonalButton"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginTop="8dp"
+        android:backgroundTint="@color/surface_card_selected"
+        android:text="Copy Append-to-authorized_keys Command"
+        android:textColor="@color/primary"
+        android:textSize="11sp"
+        app:cornerRadius="10dp" />
+
+</LinearLayout>

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Terminal Customization Card -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.LeuwiPanjang.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="Terminal Appearance"
+                    android:textColor="@color/primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <!-- Theme Spinner -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="4dp"
+                    android:text="@string/terminal_theme"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <Spinner
+                    android:id="@+id/spDefaultTheme"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@color/surface_card_selected"
+                    android:popupBackground="@color/surface_card" />
+
+                <!-- Font Size -->
+                <TextView
+                    android:id="@+id/tvFontSizeLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="4dp"
+                    android:text="Font Size: 14sp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/sliderFontSize"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="1"
+                    android:value="14"
+                    android:valueFrom="10"
+                    android:valueTo="24" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- About LeuwiPanjang SSH -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.LeuwiPanjang.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="About LeuwiPanjang"
+                    android:textColor="@color/primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="LeuwiPanjang Remote SSH Terminal v1.0.0\nProfessional, lightweight, and secure Termius-like Android SSH client built with 100% Native Kotlin, JSch 0.2+, and Bouncy Castle."
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/stroke_color" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Auto Release CI/CD"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Pushing commits to main automatically triggers GitHub Actions to build APK and AAB, compute semantic release tags, and publish releases."
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

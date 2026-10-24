@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/terminal_bg"
+    android:orientation="vertical">
+
+    <!-- Top Terminal Header Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:background="@color/surface_dark"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@null"
+            android:padding="6dp"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="@color/text_primary" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Status Dot -->
+                <View
+                    android:id="@+id/viewStatusDot"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@color/status_warning" />
+
+                <TextView
+                    android:id="@+id/tvTerminalTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Server Alias"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvTerminalSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="root@192.168.1.1:22"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Snippets runner button -->
+        <ImageView
+            android:id="@+id/btnRunSnippet"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@null"
+            android:padding="7dp"
+            android:src="@drawable/ic_code"
+            app:tint="@color/primary" />
+
+        <!-- Disconnect / Reconnect button -->
+        <ImageView
+            android:id="@+id/btnDisconnect"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@null"
+            android:padding="7dp"
+            android:src="@drawable/ic_delete"
+            app:tint="@color/status_error" />
+
+    </LinearLayout>
+
+    <!-- Terminal Screen Viewer -->
+    <ScrollView
+        android:id="@+id/scrollTerminal"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/tvTerminalOutput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:lineSpacingExtra="2dp"
+            android:textIsSelectable="true"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp" />
+    </ScrollView>
+
+    <!-- Termius Accessory Keys Bar -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:background="@color/surface_dark"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/layoutAccessoryKeys"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+
+            <Button
+                android:id="@+id/keyEsc"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="ESC" />
+
+            <Button
+                android:id="@+id/keyTab"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="TAB" />
+
+            <Button
+                android:id="@+id/keyCtrl"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="CTRL" />
+
+            <Button
+                android:id="@+id/keyAlt"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="ALT" />
+
+            <Button
+                android:id="@+id/keyUp"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="▲" />
+
+            <Button
+                android:id="@+id/keyDown"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="▼" />
+
+            <Button
+                android:id="@+id/keyLeft"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="◀" />
+
+            <Button
+                android:id="@+id/keyRight"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="▶" />
+
+            <Button
+                android:id="@+id/keyPipe"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="|" />
+
+            <Button
+                android:id="@+id/keySlash"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="/" />
+
+            <Button
+                android:id="@+id/keyTilde"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="~" />
+
+            <Button
+                android:id="@+id/keyDash"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="-" />
+
+            <Button
+                android:id="@+id/keyColon"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text=":" />
+
+            <Button
+                android:id="@+id/keyCtrlC"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="^C"
+                android:textColor="@color/status_error" />
+
+            <Button
+                android:id="@+id/keyCtrlD"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="^D" />
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Soft Keyboard Quick Input Field -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@color/surface_card"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <EditText
+            android:id="@+id/etTerminalInput"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@color/transparent"
+            android:fontFamily="monospace"
+            android:hint="Type command or press keys..."
+            android:imeOptions="actionSend"
+            android:inputType="textNoSuggestions|textVisiblePassword"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted"
+            android:textSize="13sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSend"
+            style="@style/Widget.Material3.Button.IconButton.Filled"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:backgroundTint="@color/primary"
+            app:icon="@drawable/ic_play"
+            app:iconTint="@color/bg_dark" />
+
+    </LinearLayout>
+
+</LinearLayout>

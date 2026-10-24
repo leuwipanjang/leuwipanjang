@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LeuwiPanjang SSH</string>
+    <string name="app_subtitle">Fast, Lightweight &amp; Secure Terminal</string>
+
+    <!-- Navigation -->
+    <string name="nav_hosts">Hosts</string>
+    <string name="nav_keys">Key Vault</string>
+    <string name="nav_snippets">Snippets</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Hosts -->
+    <string name="hosts_title">SSH Hosts</string>
+    <string name="add_host">New Host</string>
+    <string name="edit_host">Edit Host</string>
+    <string name="connect">Connect</string>
+    <string name="search_hosts">Search hosts, IP, or labels...</string>
+    <string name="no_hosts_found">No SSH hosts added yet.</string>
+    <string name="no_hosts_desc">Tap + to add your remote server</string>
+    <string name="host_alias">Server Alias (e.g. Ubuntu VPS)</string>
+    <string name="hostname_or_ip">Hostname or IP Address</string>
+    <string name="port">Port (default: 22)</string>
+    <string name="username">Username (e.g. root, ubuntu)</string>
+    <string name="auth_method">Authentication Method</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_key">SSH Public/Private Key</string>
+    <string name="select_key">Select Key from Vault</string>
+    <string name="key_passphrase">Key Passphrase (optional)</string>
+    <string name="host_group">Group / Tag (e.g. Production)</string>
+    <string name="save_host">Save Host</string>
+    <string name="delete_host">Delete Host</string>
+    <string name="confirm_delete_host">Are you sure you want to delete this host?</string>
+
+    <!-- Keys -->
+    <string name="keys_title">SSH Key Vault</string>
+    <string name="add_key">New Key</string>
+    <string name="generate_key">Generate Key Pair</string>
+    <string name="import_key">Import Existing Key</string>
+    <string name="key_alias">Key Name / Alias</string>
+    <string name="key_type">Key Algorithm</string>
+    <string name="public_key">Public Key (OpenSSH)</string>
+    <string name="private_key">Private Key (PEM / OpenSSH)</string>
+    <string name="copy_public_key">Copy Public Key</string>
+    <string name="public_key_copied">Public key copied to clipboard!</string>
+    <string name="fingerprint">SHA256 Fingerprint</string>
+    <string name="paste_private_key">Paste your private key here...</string>
+    <string name="how_to_use_key">Add this public key to ~/.ssh/authorized_keys on your remote server.</string>
+
+    <!-- Snippets -->
+    <string name="snippets_title">Quick Snippets</string>
+    <string name="add_snippet">New Snippet</string>
+    <string name="snippet_title">Title</string>
+    <string name="snippet_command">Command</string>
+    <string name="run_snippet">Execute</string>
+
+    <!-- Terminal -->
+    <string name="terminal_connecting">Connecting to %s...</string>
+    <string name="terminal_connected">Connected</string>
+    <string name="terminal_disconnected">Disconnected</string>
+    <string name="terminal_reconnect">Reconnect</string>
+    <string name="terminal_disconnect">Disconnect</string>
+    <string name="confirm_disconnect">Disconnect from this SSH session?</string>
+    <string name="send">Send</string>
+    <string name="terminal_theme">Terminal Theme</string>
+    <string name="font_size">Font Size</string>
+
+    <!-- Common -->
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="delete">Delete</string>
+    <string name="ok">OK</string>
+    <string name="copied">Copied to clipboard</string>
+</resources>

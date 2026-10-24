@@ -24,6 +24,8 @@ app/build/
 # Keystore files
 *.jks
 *.keystore
+keystore_base64.txt
+KEYSTORE_*.txt
 !debug.keystore
 
 # Local configuration file (sdk path, etc)

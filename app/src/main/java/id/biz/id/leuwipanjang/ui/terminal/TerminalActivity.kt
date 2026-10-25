@@ -6,7 +6,7 @@ import android.graphics.Typeface
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
-import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -143,32 +143,62 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     private fun setupInputHandlers() {
-        binding.btnSend.setOnClickListener {
-            val text = binding.etTerminalInput.text?.toString().orEmpty()
-            sendUserInput(text + "\r")
-            binding.etTerminalInput.setText("")
+        // Tap on terminal output to open keyboard
+        binding.tvTerminalOutput.setOnClickListener {
+            binding.etTerminalInput.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(binding.etTerminalInput, InputMethodManager.SHOW_IMPLICIT)
         }
 
-        binding.etTerminalInput.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_ACTION_DONE) {
-                val text = binding.etTerminalInput.text?.toString().orEmpty()
-                sendUserInput(text + "\r")
-                binding.etTerminalInput.setText("")
-                true
-            } else false
+        binding.scrollTerminal.setOnClickListener {
+            binding.etTerminalInput.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(binding.etTerminalInput, InputMethodManager.SHOW_IMPLICIT)
         }
 
+        // Auto-focus the hidden EditText on start
+        binding.etTerminalInput.requestFocus()
+
+        // Send each key directly to SSH — no buffering, no separate input box
         binding.etTerminalInput.setOnKeyListener { _, keyCode, event ->
             if (event.action == KeyEvent.ACTION_DOWN) {
-                if (keyCode == KeyEvent.KEYCODE_ENTER) {
-                    val text = binding.etTerminalInput.text?.toString().orEmpty()
-                    sendUserInput(text + "\r")
-                    binding.etTerminalInput.setText("")
-                    return@setOnKeyListener true
+                when (keyCode) {
+                    KeyEvent.KEYCODE_ENTER -> {
+                        sendUserInput("\r")
+                        return@setOnKeyListener true
+                    }
+                    KeyEvent.KEYCODE_DEL -> {
+                        sendUserInput("\u007F") // DEL / Backspace
+                        return@setOnKeyListener true
+                    }
                 }
             }
             false
         }
+
+        // Watch for text changes and forward each character immediately
+        binding.etTerminalInput.addTextChangedListener(object : android.text.TextWatcher {
+            private var previousLength = 0
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                previousLength = s?.length ?: 0
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (s != null && s.length > previousLength) {
+                    // New characters were added — send only the new ones
+                    val newChars = s.substring(start, start + count)
+                    sendUserInput(newChars)
+                }
+            }
+
+            override fun afterTextChanged(s: android.text.Editable?) {
+                // Clear the hidden field silently to avoid feedback loops
+                if (!s.isNullOrEmpty()) {
+                    s.clear()
+                }
+            }
+        })
     }
 
     private fun sendUserInput(input: String) {

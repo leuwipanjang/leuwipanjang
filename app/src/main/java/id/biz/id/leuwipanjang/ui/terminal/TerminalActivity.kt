@@ -98,6 +98,9 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
                     binding.tvTerminalOutput.text = ""
                 }
             }
+            onSendTerminalResponse = { response ->
+                sshManager?.send(response)
+            }
         }
 
         currentFontSize = if (targetHost.fontSize in 1..8) targetHost.fontSize else 6
@@ -238,6 +241,10 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
             ViewCompat.onApplyWindowInsets(view, insets)
         }
 
+        binding.tvTerminalOutput.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            updateTerminalSize()
+        }
+
         // Auto-focus the hidden input view on start
         binding.etTerminalInput.requestFocus()
 
@@ -304,6 +311,22 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     private fun applyFontSize(size: Int) {
         currentFontSize = size.coerceIn(1, 8)
         binding.tvTerminalOutput.setTextSize(TypedValue.COMPLEX_UNIT_PT, currentFontSize.toFloat())
+        binding.tvTerminalOutput.post { updateTerminalSize() }
+    }
+
+    private fun updateTerminalSize() {
+        val outputView = binding.tvTerminalOutput
+        val width = outputView.width - outputView.paddingLeft - outputView.paddingRight
+        val height = outputView.height - outputView.paddingTop - outputView.paddingBottom
+
+        val charWidth = outputView.paint.measureText("M")
+        val charHeight = outputView.lineHeight.toFloat()
+
+        if (width > 0 && height > 0 && charWidth > 0 && charHeight > 0) {
+            val cols = (width / charWidth).toInt().coerceIn(20, 240)
+            val rows = (height / charHeight).toInt().coerceIn(10, 100)
+            sshManager?.updatePtySize(cols, rows)
+        }
     }
 
     private fun saveFontSize() {
@@ -426,6 +449,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     override fun onConnected() {
         binding.viewStatusDot.setBackgroundColor(Color.parseColor("#10B981")) // Green Success
         binding.tvTerminalOutput.append("[Connected via ${if (host?.authType == AuthType.KEY) "Public Key" else "Password"}]\n\n")
+        binding.tvTerminalOutput.post { updateTerminalSize() }
         scrollToBottom()
     }
 

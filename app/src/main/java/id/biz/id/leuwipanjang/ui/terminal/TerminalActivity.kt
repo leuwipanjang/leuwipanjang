@@ -241,7 +241,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
             ViewCompat.onApplyWindowInsets(view, insets)
         }
 
-        binding.tvTerminalOutput.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+        binding.scrollTerminal.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             updateTerminalSize()
         }
 
@@ -318,12 +318,12 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     private var lastPtyRows = 0
 
     private fun updateTerminalSize() {
-        val outputView = binding.tvTerminalOutput
-        val width = outputView.width - outputView.paddingLeft - outputView.paddingRight
-        val height = outputView.height - outputView.paddingTop - outputView.paddingBottom
+        val viewport = binding.scrollTerminal
+        val width = viewport.width - viewport.paddingLeft - viewport.paddingRight
+        val height = viewport.height - viewport.paddingTop - viewport.paddingBottom
 
-        val charWidth = outputView.paint.measureText("M")
-        val charHeight = outputView.lineHeight.toFloat()
+        val charWidth = binding.tvTerminalOutput.paint.measureText("M")
+        val charHeight = binding.tvTerminalOutput.lineHeight.toFloat()
 
         if (width > 0 && height > 0 && charWidth > 0 && charHeight > 0) {
             val cols = (width / charWidth).toInt().coerceIn(20, 240)
@@ -469,7 +469,13 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
             val styled = ansiParser.parse(text)
             binding.tvTerminalOutput.append(styled)
         }
-        scrollToBottom()
+        if (ansiParser.isAlternateScreenActive) {
+            binding.scrollTerminal.post {
+                binding.scrollTerminal.scrollTo(0, 0)
+            }
+        } else {
+            scrollToBottom()
+        }
     }
 
     override fun onError(errorMessage: String) {

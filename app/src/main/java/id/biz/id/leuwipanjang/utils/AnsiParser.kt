@@ -31,6 +31,8 @@ class AnsiParser(private var theme: TerminalTheme) {
 
     // Alternate Screen State (for nano, vi, htop, less)
     private var isAlternateScreen = false
+    val isAlternateScreenActive: Boolean
+        get() = isAlternateScreen
     private var mainScreenBackup: SpannableStringBuilder? = null
     private val altRows = ArrayList<SpannableStringBuilder>()
     private var altCursorRow = 0 // 0-based
@@ -393,11 +395,12 @@ class AnsiParser(private var theme: TerminalTheme) {
     }
 
     private fun renderAltToTarget(target: Editable) {
-        target.clear()
+        val full = SpannableStringBuilder()
         for (i in altRows.indices) {
-            if (i > 0) target.append("\n")
-            target.append(altRows[i])
+            if (i > 0) full.append("\n")
+            full.append(altRows[i])
         }
+        target.replace(0, target.length, full)
     }
 
     private fun handleSgr(params: String) {

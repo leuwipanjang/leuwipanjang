@@ -28,6 +28,8 @@ class SshManager(
 
     private val scope = CoroutineScope(Dispatchers.IO + Job())
     private var readerJob: Job? = null
+    private var writerJob: Job? = null
+    private val sendChannel = kotlinx.coroutines.channels.Channel<ByteArray>(kotlinx.coroutines.channels.Channel.UNLIMITED)
 
     var isConnected: Boolean = false
         private set
@@ -97,8 +99,9 @@ class SshManager(
                 isConnected = true
                 withContext(Dispatchers.Main) { listener.onConnected() }
 
-                // Start async reader loop
+                // Start async reader and writer loops
                 startReadingOutput()
+                startWriterLoop()
 
             } catch (e: Exception) {
                 isConnected = false
@@ -139,30 +142,27 @@ class SshManager(
         }
     }
 
-    fun send(text: String) {
-        scope.launch {
-            try {
-                outputStream?.let { os ->
-                    os.write(text.toByteArray(Charsets.UTF_8))
-                    os.flush()
+    private fun startWriterLoop() {
+        writerJob = scope.launch {
+            for (bytes in sendChannel) {
+                try {
+                    outputStream?.let { os ->
+                        os.write(bytes)
+                        os.flush()
+                    }
+                } catch (e: Exception) {
+                    // Handle write error
                 }
-            } catch (e: Exception) {
-                // Handle write error
             }
         }
     }
 
+    fun send(text: String) {
+        sendBytes(text.toByteArray(Charsets.UTF_8))
+    }
+
     fun sendBytes(bytes: ByteArray) {
-        scope.launch {
-            try {
-                outputStream?.let { os ->
-                    os.write(bytes)
-                    os.flush()
-                }
-            } catch (e: Exception) {
-                // Handle write error
-            }
-        }
+        sendChannel.trySend(bytes)
     }
 
     fun updatePtySize(cols: Int, rows: Int) {
@@ -176,6 +176,7 @@ class SshManager(
     fun disconnect() {
         isConnected = false
         readerJob?.cancel()
+        writerJob?.cancel()
         scope.launch {
             try {
                 channel?.disconnect()

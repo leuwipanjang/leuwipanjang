@@ -160,6 +160,8 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
     private fun sendSpecialKey(chars: String) {
         sshManager?.send(chars)
+        // Re-focus hidden input so software keyboard keeps working
+        binding.etTerminalInput.requestFocus()
     }
 
     private fun setupInputHandlers() {
@@ -352,6 +354,10 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
             updateModifierButtonState(binding.keyCtrl, false)
         } else {
             sshManager?.send(input)
+        }
+        // Ensure hidden input keeps focus for continuous typing
+        if (!binding.etTerminalInput.hasFocus()) {
+            binding.etTerminalInput.requestFocus()
         }
     }
 

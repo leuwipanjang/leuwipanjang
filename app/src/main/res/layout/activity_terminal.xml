@@ -278,7 +278,7 @@
          Typing appears inline at the terminal cursor, not in a separate box. -->
     <id.biz.id.leuwipanjang.ui.terminal.TerminalInputView
         android:id="@+id/etTerminalInput"
-        android:layout_width="1dp"
+        android:layout_width="match_parent"
         android:layout_height="1dp"
         android:alpha="0.01"
         android:focusable="true"

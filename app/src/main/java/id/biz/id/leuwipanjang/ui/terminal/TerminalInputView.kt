@@ -20,55 +20,68 @@ class TerminalInputView @JvmOverloads constructor(
     var onBackspace: (() -> Unit)? = null
     var onEnter: (() -> Unit)? = null
 
+    private var isResetting = false
+
     init {
         setBackgroundColor(Color.TRANSPARENT)
         setTextColor(Color.TRANSPARENT)
         isCursorVisible = false
         inputType = InputType.TYPE_CLASS_TEXT or
-                InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
-                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or
+                InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
         imeOptions = EditorInfo.IME_ACTION_NONE or
                 EditorInfo.IME_FLAG_NO_EXTRACT_UI or
                 EditorInfo.IME_FLAG_NO_FULLSCREEN
+        ensureDummyText()
+    }
+
+    fun ensureDummyText() {
+        if (text.toString() != " ") {
+            isResetting = true
+            setText(" ")
+            setSelection(1)
+            isResetting = false
+        }
     }
 
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
         outAttrs.inputType = InputType.TYPE_CLASS_TEXT or
-                InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
-                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or
+                InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
         outAttrs.imeOptions = EditorInfo.IME_ACTION_NONE or
                 EditorInfo.IME_FLAG_NO_EXTRACT_UI or
                 EditorInfo.IME_FLAG_NO_FULLSCREEN
 
+        ensureDummyText()
         val target = super.onCreateInputConnection(outAttrs) ?: return null
 
-        return object : InputConnectionWrapper(target, true) {
+        return object : InputConnectionWrapper(target, false) {
             override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
-                if (!text.isNullOrEmpty()) {
+                if (!text.isNullOrEmpty() && !isResetting) {
                     onCommitTextInput?.invoke(text.toString())
                 }
+                resetLater()
                 return true
             }
 
             override fun setComposingText(text: CharSequence?, newCursorPosition: Int): Boolean {
-                if (!text.isNullOrEmpty()) {
+                if (!text.isNullOrEmpty() && !isResetting) {
                     onCommitTextInput?.invoke(text.toString())
                 }
+                resetLater()
                 return true
             }
 
             override fun finishComposingText(): Boolean {
+                resetLater()
                 return true
             }
 
             override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
-                if (beforeLength > 0) {
-                    repeat(beforeLength) {
-                        onBackspace?.invoke()
-                    }
-                    return true
+                if (!isResetting) {
+                    onBackspace?.invoke()
                 }
-                onBackspace?.invoke()
+                resetLater()
                 return true
             }
 
@@ -77,12 +90,20 @@ class TerminalInputView @JvmOverloads constructor(
                     when (event.keyCode) {
                         KeyEvent.KEYCODE_DEL -> {
                             onBackspace?.invoke()
+                            resetLater()
                             return true
                         }
                         KeyEvent.KEYCODE_ENTER -> {
                             onEnter?.invoke()
+                            resetLater()
                             return true
                         }
+                    }
+                    val unicode = event.unicodeChar
+                    if (unicode > 0) {
+                        onCommitTextInput?.invoke(unicode.toChar().toString())
+                        resetLater()
+                        return true
                     }
                 }
                 return super.sendKeyEvent(event)
@@ -90,7 +111,14 @@ class TerminalInputView @JvmOverloads constructor(
 
             override fun performEditorAction(editorAction: Int): Boolean {
                 onEnter?.invoke()
+                resetLater()
                 return true
+            }
+
+            private fun resetLater() {
+                post {
+                    ensureDummyText()
+                }
             }
         }
     }
@@ -99,16 +127,19 @@ class TerminalInputView @JvmOverloads constructor(
         when (keyCode) {
             KeyEvent.KEYCODE_DEL -> {
                 onBackspace?.invoke()
+                ensureDummyText()
                 return true
             }
             KeyEvent.KEYCODE_ENTER -> {
                 onEnter?.invoke()
+                ensureDummyText()
                 return true
             }
         }
         val unicode = event.unicodeChar
         if (unicode > 0) {
             onCommitTextInput?.invoke(unicode.toChar().toString())
+            ensureDummyText()
             return true
         }
         return super.onKeyDown(keyCode, event)

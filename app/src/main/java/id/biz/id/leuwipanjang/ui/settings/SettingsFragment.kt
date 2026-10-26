@@ -51,13 +51,13 @@ class SettingsFragment : Fragment() {
         }
 
         // Setup Font Size Slider
-        val savedFontSize = prefs.getInt("default_font_size", 14)
+        val savedFontSize = prefs.getInt("default_font_size", 6).coerceIn(1, 8)
         binding.sliderFontSize.value = savedFontSize.toFloat()
-        binding.tvFontSizeLabel.text = "Font Size: ${savedFontSize}sp"
+        binding.tvFontSizeLabel.text = "Font Size: ${savedFontSize}pt"
 
         binding.sliderFontSize.addOnChangeListener { _, value, _ ->
             val size = value.toInt()
-            binding.tvFontSizeLabel.text = "Font Size: ${size}sp"
+            binding.tvFontSizeLabel.text = "Font Size: ${size}pt"
             prefs.edit().putInt("default_font_size", size).apply()
         }
     }

@@ -65,9 +65,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:stepSize="1"
-                    android:value="14"
-                    android:valueFrom="10"
-                    android:valueTo="24" />
+                    android:value="6"
+                    android:valueFrom="1"
+                    android:valueTo="8" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

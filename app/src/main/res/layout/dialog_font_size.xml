@@ -60,7 +60,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
-                android:text="14 sp"
+                android:text="6 pt"
                 android:textColor="@color/primary"
                 android:textSize="26sp"
                 android:textStyle="bold" />
@@ -69,7 +69,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="Range: 8 - 32 sp"
+                android:text="Range: 1 - 8 pt"
                 android:textColor="@color/text_muted"
                 android:textSize="11sp" />
         </LinearLayout>
@@ -100,8 +100,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:stepSize="1.0"
-        android:valueFrom="8.0"
-        android:valueTo="32.0"
+        android:valueFrom="1.0"
+        android:valueTo="8.0"
         app:thumbColor="@color/primary"
         app:trackColorActive="@color/primary"
         app:trackColorInactive="@color/surface_card" />
@@ -119,7 +119,7 @@
             android:layout_width="0dp"
             android:layout_height="44dp"
             android:layout_weight="1"
-            android:text="Reset (14sp)"
+            android:text="Reset (6 pt)"
             android:textColor="@color/text_muted"
             android:textSize="12sp" />
 

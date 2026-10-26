@@ -19,7 +19,7 @@ data class SshHost(
     var keyPassphrase: String? = null,
     var group: String = "Default",
     var themeId: String = "termius_dark",
-    var fontSize: Int = 14,
+    var fontSize: Int = 6,
     var keepAliveSeconds: Int = 30,
     var lastConnected: Long? = null,
     var notes: String? = null

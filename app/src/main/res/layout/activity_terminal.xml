@@ -276,17 +276,13 @@
 
     <!-- Hidden input field — captures keyboard input invisibly.
          Typing appears inline at the terminal cursor, not in a separate box. -->
-    <EditText
+    <id.biz.id.leuwipanjang.ui.terminal.TerminalInputView
         android:id="@+id/etTerminalInput"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:background="@android:color/transparent"
-        android:cursorVisible="false"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:alpha="0.01"
         android:focusable="true"
         android:focusableInTouchMode="true"
-        android:importantForAccessibility="yes"
-        android:inputType="textNoSuggestions|textVisiblePassword"
-        android:textColor="@android:color/transparent"
-        android:textSize="1sp" />
+        android:importantForAccessibility="no" />
 
 </LinearLayout>

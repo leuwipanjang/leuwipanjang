@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.ScaleGestureDetector
 import android.view.View
@@ -50,7 +51,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     private var isCtrlActive = false
     private var isAltActive = false
     private var isKeyboardOpen = false
-    private var currentFontSize = 14
+    private var currentFontSize = 6
     private lateinit var scaleGestureDetector: ScaleGestureDetector
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,7 +97,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
             }
         }
 
-        currentFontSize = targetHost.fontSize
+        currentFontSize = if (targetHost.fontSize in 1..8) targetHost.fontSize else 6
         binding.tvTerminalTitle.text = targetHost.alias
         binding.tvTerminalSubtitle.text = "${targetHost.username}@${targetHost.hostname}:${targetHost.port}"
 
@@ -106,7 +107,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.tvTerminalOutput.setBackgroundColor(activeTheme.backgroundColor)
         binding.tvTerminalOutput.setTextColor(activeTheme.foregroundColor)
         binding.tvTerminalOutput.typeface = Typeface.MONOSPACE
-        binding.tvTerminalOutput.textSize = currentFontSize.toFloat()
+        binding.tvTerminalOutput.setTextSize(TypedValue.COMPLEX_UNIT_PT, currentFontSize.toFloat())
 
         binding.btnBack.setOnClickListener { handleExit() }
         binding.btnDisconnect.setOnClickListener { handleExit() }
@@ -173,7 +174,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
             override fun onScale(detector: ScaleGestureDetector): Boolean {
                 val factor = detector.scaleFactor
-                val newSize = (baseSize * factor).toInt().coerceIn(8, 32)
+                val newSize = (baseSize * factor).toInt().coerceIn(1, 8)
                 if (newSize != currentFontSize) {
                     applyFontSize(newSize)
                 }
@@ -207,49 +208,19 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
             ViewCompat.onApplyWindowInsets(view, insets)
         }
 
-        // Auto-focus the hidden EditText on start
+        // Auto-focus the hidden input view on start
         binding.etTerminalInput.requestFocus()
 
-        // Send each key directly to SSH — no buffering, no separate input box
-        binding.etTerminalInput.setOnKeyListener { _, keyCode, event ->
-            if (event.action == KeyEvent.ACTION_DOWN) {
-                when (keyCode) {
-                    KeyEvent.KEYCODE_ENTER -> {
-                        sendUserInput("\r")
-                        return@setOnKeyListener true
-                    }
-                    KeyEvent.KEYCODE_DEL -> {
-                        sendUserInput("\u007F") // DEL / Backspace
-                        return@setOnKeyListener true
-                    }
-                }
-            }
-            false
+        // Setup direct terminal input listener
+        binding.etTerminalInput.onCommitTextInput = { text ->
+            sendUserInput(text)
         }
-
-        // Watch for text changes and forward each character immediately
-        binding.etTerminalInput.addTextChangedListener(object : android.text.TextWatcher {
-            private var previousLength = 0
-
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-                previousLength = s?.length ?: 0
-            }
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                if (s != null && s.length > previousLength) {
-                    // New characters were added — send only the new ones
-                    val newChars = s.substring(start, start + count)
-                    sendUserInput(newChars)
-                }
-            }
-
-            override fun afterTextChanged(s: android.text.Editable?) {
-                // Clear the hidden field silently to avoid feedback loops
-                if (!s.isNullOrEmpty()) {
-                    s.clear()
-                }
-            }
-        })
+        binding.etTerminalInput.onBackspace = {
+            sendUserInput("\u007F") // DEL / Backspace
+        }
+        binding.etTerminalInput.onEnter = {
+            sendUserInput("\r")
+        }
     }
 
     private fun toggleKeyboard() {
@@ -301,8 +272,8 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     private fun applyFontSize(size: Int) {
-        currentFontSize = size.coerceIn(8, 32)
-        binding.tvTerminalOutput.textSize = currentFontSize.toFloat()
+        currentFontSize = size.coerceIn(1, 8)
+        binding.tvTerminalOutput.setTextSize(TypedValue.COMPLEX_UNIT_PT, currentFontSize.toFloat())
     }
 
     private fun saveFontSize() {
@@ -316,8 +287,8 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
     private fun showFontSizeDialog() {
         val dialogBinding = DialogFontSizeBinding.inflate(layoutInflater)
-        dialogBinding.tvFontSizeValue.text = "$currentFontSize sp"
-        dialogBinding.sliderFontSize.value = currentFontSize.toFloat().coerceIn(8f, 32f)
+        dialogBinding.tvFontSizeValue.text = "$currentFontSize pt"
+        dialogBinding.sliderFontSize.value = currentFontSize.toFloat().coerceIn(1f, 8f)
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogBinding.root)
@@ -326,22 +297,22 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         fun updateDialogUi(size: Int) {
-            val clamped = size.coerceIn(8, 32)
+            val clamped = size.coerceIn(1, 8)
             applyFontSize(clamped)
-            dialogBinding.tvFontSizeValue.text = "$clamped sp"
+            dialogBinding.tvFontSizeValue.text = "$clamped pt"
             if (dialogBinding.sliderFontSize.value != clamped.toFloat()) {
                 dialogBinding.sliderFontSize.value = clamped.toFloat()
             }
         }
 
         dialogBinding.btnFontMinus.setOnClickListener {
-            if (currentFontSize > 8) {
+            if (currentFontSize > 1) {
                 updateDialogUi(currentFontSize - 1)
             }
         }
 
         dialogBinding.btnFontPlus.setOnClickListener {
-            if (currentFontSize < 32) {
+            if (currentFontSize < 8) {
                 updateDialogUi(currentFontSize + 1)
             }
         }
@@ -351,13 +322,13 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
                 val size = value.toInt()
                 if (size != currentFontSize) {
                     applyFontSize(size)
-                    dialogBinding.tvFontSizeValue.text = "$size sp"
+                    dialogBinding.tvFontSizeValue.text = "$size pt"
                 }
             }
         }
 
         dialogBinding.btnFontReset.setOnClickListener {
-            updateDialogUi(14)
+            updateDialogUi(6)
         }
 
         dialogBinding.btnFontDone.setOnClickListener {

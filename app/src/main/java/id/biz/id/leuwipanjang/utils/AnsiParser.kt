@@ -225,13 +225,9 @@ class AnsiParser(private var theme: TerminalTheme) {
                 val count = params.toIntOrNull() ?: 1
                 if (isAlternateScreen) {
                     altCursorCol = (altCursorCol - count).coerceAtLeast(0)
-                } else {
-                    for (c in 0 until count) {
-                        if (target.isNotEmpty() && target[target.length - 1] != '\n') {
-                            target.delete(target.length - 1, target.length)
-                        }
-                    }
                 }
+                // Normal scroll mode: CSI D from server is a display cursor move only.
+                // We don't track 2D cursor position in normal mode, so this is a no-op.
             }
             "G", "`" -> {
                 val col = (params.toIntOrNull() ?: 1) - 1
@@ -482,14 +478,26 @@ class AnsiParser(private var theme: TerminalTheme) {
 
     private fun appendCleanChunk(target: Editable, chunk: String) {
         val clean = StringBuilder()
-        for (i in chunk.indices) {
+        var i = 0
+        while (i < chunk.length) {
             val c = chunk[i]
             when {
                 c == '\b' -> {
                     if (clean.isNotEmpty()) {
                         clean.deleteCharAt(clean.length - 1)
-                    } else if (target.isNotEmpty() && target[target.length - 1] != '\n') {
-                        target.delete(target.length - 1, target.length)
+                    } else {
+                        // Distinguish erase sequence (\b<space>\b) from standalone \b (cursor left)
+                        // Erase sequence: server wants to visually delete a character
+                        // Standalone \b: cursor movement only (e.g. bash readline moving left) — no-op for display
+                        val isEraseSeq = i + 2 < chunk.length && chunk[i + 1] == ' ' && chunk[i + 2] == '\b'
+                        if (isEraseSeq) {
+                            // Consume the full \b<space>\b pattern
+                            if (target.isNotEmpty() && target[target.length - 1] != '\n') {
+                                target.delete(target.length - 1, target.length)
+                            }
+                            i += 2 // skip space and next \b; outer i++ will skip past the last \b
+                        }
+                        // else standalone \b = cursor left, no display change
                     }
                 }
                 c == '\r' -> {
@@ -514,6 +522,7 @@ class AnsiParser(private var theme: TerminalTheme) {
                     clean.append(c)
                 }
             }
+            i++
         }
 
         if (clean.isNotEmpty()) {

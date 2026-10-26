@@ -142,11 +142,6 @@ class TerminalInputView @JvmOverloads constructor(
         override fun sendKeyEvent(event: KeyEvent): Boolean {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 when (event.keyCode) {
-                    KeyEvent.KEYCODE_DEL -> {
-                        onBackspace?.invoke()
-                        composingText = ""
-                        return true
-                    }
                     KeyEvent.KEYCODE_ENTER -> {
                         onEnter?.invoke()
                         composingText = ""
@@ -187,7 +182,6 @@ class TerminalInputView @JvmOverloads constructor(
                 }
             } else if (event.action == KeyEvent.ACTION_UP) {
                 when (event.keyCode) {
-                    KeyEvent.KEYCODE_DEL,
                     KeyEvent.KEYCODE_ENTER,
                     KeyEvent.KEYCODE_TAB,
                     KeyEvent.KEYCODE_ESCAPE,

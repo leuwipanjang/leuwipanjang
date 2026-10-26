@@ -159,8 +159,22 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     private fun sendSpecialKey(chars: String) {
-        sshManager?.send(chars)
-        // Re-focus hidden input so software keyboard keeps working
+        binding.etTerminalInput.resetComposing()
+        var finalChars = chars
+        if (isCtrlActive && chars.length == 1) {
+            val c = chars[0]
+            if (c in 'a'..'z' || c in 'A'..'Z') {
+                val ctrlCode = (c.uppercaseChar().code - 64).toChar()
+                finalChars = ctrlCode.toString()
+            }
+            isCtrlActive = false
+            updateModifierButtonState(binding.keyCtrl, false)
+        } else if (isAltActive) {
+            finalChars = "\u001B$chars"
+            isAltActive = false
+            updateModifierButtonState(binding.keyAlt, false)
+        }
+        sshManager?.send(finalChars)
         binding.etTerminalInput.requestFocus()
     }
 
@@ -196,6 +210,17 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         // Tap on terminal output to open keyboard
         binding.tvTerminalOutput.setOnClickListener {
             showKeyboard()
+        }
+
+        binding.tvTerminalOutput.setOnLongClickListener {
+            val text = binding.tvTerminalOutput.text.toString()
+            if (text.isNotBlank()) {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Terminal Output", text)
+                clipboard?.setPrimaryClip(clip)
+                Toast.makeText(this, "Terminal output copied to clipboard", Toast.LENGTH_SHORT).show()
+            }
+            true
         }
 
         binding.scrollTerminal.setOnClickListener {
@@ -239,7 +264,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.etTerminalInput.requestFocus()
         binding.etTerminalInput.post {
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-            imm?.showSoftInput(binding.etTerminalInput, InputMethodManager.SHOW_IMPLICIT)
+            imm?.showSoftInput(binding.etTerminalInput, 0)
             val insetsController = WindowCompat.getInsetsController(window, binding.etTerminalInput)
             insetsController.show(WindowInsetsCompat.Type.ime())
         }
@@ -346,16 +371,24 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     private fun sendUserInput(input: String) {
-        if (isCtrlActive && input.isNotEmpty()) {
+        if (input.isEmpty()) return
+
+        var toSend = input
+        if (isCtrlActive) {
             val firstChar = input[0]
-            val ctrlCode = (firstChar.uppercaseChar().code - 64).toChar()
-            sshManager?.send(ctrlCode.toString())
+            if (firstChar in 'a'..'z' || firstChar in 'A'..'Z') {
+                val ctrlCode = (firstChar.uppercaseChar().code - 64).toChar()
+                toSend = ctrlCode.toString() + input.substring(1)
+            }
             isCtrlActive = false
             updateModifierButtonState(binding.keyCtrl, false)
-        } else {
-            sshManager?.send(input)
+        } else if (isAltActive) {
+            toSend = "\u001B$input"
+            isAltActive = false
+            updateModifierButtonState(binding.keyAlt, false)
         }
-        // Ensure hidden input keeps focus for continuous typing
+
+        sshManager?.send(toSend)
         if (!binding.etTerminalInput.hasFocus()) {
             binding.etTerminalInput.requestFocus()
         }
@@ -416,7 +449,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
     private fun scrollToBottom() {
         binding.scrollTerminal.post {
-            binding.scrollTerminal.fullScroll(View.FOCUS_DOWN)
+            binding.scrollTerminal.scrollTo(0, binding.tvTerminalOutput.bottom)
         }
     }
 

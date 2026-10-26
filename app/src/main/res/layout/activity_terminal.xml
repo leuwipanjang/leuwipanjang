@@ -122,6 +122,8 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:fillViewport="true"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
         android:padding="8dp">
 
         <TextView
@@ -130,7 +132,8 @@
             android:layout_height="wrap_content"
             android:fontFamily="monospace"
             android:lineSpacingExtra="2dp"
-            android:textIsSelectable="true"
+            android:focusable="false"
+            android:focusableInTouchMode="false"
             android:textColor="@color/text_primary"
             android:textSize="13sp" />
     </ScrollView>
@@ -274,13 +277,12 @@
         </LinearLayout>
     </HorizontalScrollView>
 
-    <!-- Hidden input field — captures keyboard input invisibly.
+    <!-- Hidden input view — captures keyboard input invisibly.
          Typing appears inline at the terminal cursor, not in a separate box. -->
     <id.biz.id.leuwipanjang.ui.terminal.TerminalInputView
         android:id="@+id/etTerminalInput"
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:alpha="0.01"
         android:focusable="true"
         android:focusableInTouchMode="true"
         android:importantForAccessibility="no" />

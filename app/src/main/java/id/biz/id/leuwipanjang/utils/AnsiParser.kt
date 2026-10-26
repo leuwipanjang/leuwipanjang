@@ -453,28 +453,29 @@ class AnsiParser(private var theme: TerminalTheme) {
 
     private fun processAltChunk(chunk: String) {
         val segment = StringBuilder()
+
+        fun flushAltSegment() {
+            if (segment.isNotEmpty()) {
+                writeAltSegment(segment.toString())
+                segment.setLength(0)
+            }
+        }
+
         for (i in chunk.indices) {
             val c = chunk[i]
             when (c) {
                 '\r' -> {
-                    if (segment.isNotEmpty()) {
-                        writeAltSegment(segment.toString())
-                        segment.setLength(0)
-                    }
+                    flushAltSegment()
                     altCursorCol = 0
                 }
                 '\n' -> {
-                    if (segment.isNotEmpty()) {
-                        writeAltSegment(segment.toString())
-                        segment.setLength(0)
-                    }
+                    flushAltSegment()
                     altCursorRow = (altCursorRow + 1).coerceAtMost((terminalRows - 1).coerceAtLeast(0))
                     altCursorCol = 0
                 }
                 '\b' -> {
-                    if (segment.isNotEmpty()) {
-                        segment.deleteCharAt(segment.length - 1)
-                    } else if (altCursorCol > 0) {
+                    flushAltSegment()
+                    if (altCursorCol > 0) {
                         altCursorCol--
                     }
                 }
@@ -489,9 +490,7 @@ class AnsiParser(private var theme: TerminalTheme) {
                 }
             }
         }
-        if (segment.isNotEmpty()) {
-            writeAltSegment(segment.toString())
-        }
+        flushAltSegment()
     }
 
     private fun writeAltSegment(text: String) {
@@ -502,11 +501,20 @@ class AnsiParser(private var theme: TerminalTheme) {
             rowBuilder.append(pad)
         }
         val insertPos = altCursorCol.coerceIn(0, rowBuilder.length)
-        val overwriteLen = minOf(text.length, rowBuilder.length - insertPos)
-        if (overwriteLen > 0) {
-            rowBuilder.delete(insertPos, insertPos + overwriteLen)
+
+        // When writing only spaces at or past the end of the line (e.g. erasing characters on backspace),
+        // truncate the row so deleted characters do not linger in the buffer!
+        if (insertPos + text.length >= rowBuilder.length && text.all { it == ' ' }) {
+            if (insertPos < rowBuilder.length) {
+                rowBuilder.delete(insertPos, rowBuilder.length)
+            }
+        } else {
+            val overwriteLen = minOf(text.length, rowBuilder.length - insertPos)
+            if (overwriteLen > 0) {
+                rowBuilder.delete(insertPos, insertPos + overwriteLen)
+            }
+            insertStyled(rowBuilder, insertPos, text)
         }
-        insertStyled(rowBuilder, insertPos, text)
         altCursorCol += text.length
     }
 

@@ -18,19 +18,25 @@ class AnsiParser(private var theme: TerminalTheme) {
     var onClearScreen: (() -> Unit)? = null
     var onSendTerminalResponse: ((String) -> Unit)? = null
 
+    var terminalCols = 80
+        private set
+    var terminalRows = 24
+        private set
+
     private var currentFgColor = theme.foregroundColor
     private var currentBgColor: Int? = null
     private var isBold = false
     private var isUnderline = false
     private var isInverse = false
 
-    private var cursorRow = 1
-    private var cursorCol = 1
-    private var savedCursorRow = 1
-    private var savedCursorCol = 1
-
+    // Alternate Screen State (for nano, vi, htop, less)
     private var isAlternateScreen = false
     private var mainScreenBackup: SpannableStringBuilder? = null
+    private val altRows = ArrayList<SpannableStringBuilder>()
+    private var altCursorRow = 0 // 0-based
+    private var altCursorCol = 0 // 0-based
+    private var savedAltRow = 0
+    private var savedAltCol = 0
 
     private var pendingBuffer = ""
 
@@ -56,6 +62,11 @@ class AnsiParser(private var theme: TerminalTheme) {
     fun setTheme(newTheme: TerminalTheme) {
         this.theme = newTheme
         this.currentFgColor = newTheme.foregroundColor
+    }
+
+    fun setTerminalDimensions(cols: Int, rows: Int) {
+        this.terminalCols = cols.coerceIn(20, 240)
+        this.terminalRows = rows.coerceIn(10, 100)
     }
 
     fun parse(rawText: String): CharSequence {
@@ -101,7 +112,11 @@ class AnsiParser(private var theme: TerminalTheme) {
 
             if (start > lastEnd) {
                 val chunk = textToParse.substring(lastEnd, start)
-                processTextChunk(target, chunk)
+                if (isAlternateScreen) {
+                    processAltChunk(chunk)
+                } else {
+                    appendCleanChunk(target, chunk)
+                }
             }
 
             val matched = matcher.group()
@@ -118,27 +133,30 @@ class AnsiParser(private var theme: TerminalTheme) {
                     }
                 }
                 matched.startsWith("\u001B[") -> {
-                    // CSI sequence
                     val params = matcher.group(1) ?: ""
                     val command = matcher.group(2) ?: ""
                     handleCsi(target, command, params)
                 }
                 matched == "\u001B7" -> {
-                    // Save cursor position
-                    savedCursorRow = cursorRow
-                    savedCursorCol = cursorCol
+                    if (isAlternateScreen) {
+                        savedAltRow = altCursorRow
+                        savedAltCol = altCursorCol
+                    }
                 }
                 matched == "\u001B8" -> {
-                    // Restore cursor position
-                    cursorRow = savedCursorRow
-                    cursorCol = savedCursorCol
+                    if (isAlternateScreen) {
+                        altCursorRow = savedAltRow
+                        altCursorCol = savedAltCol
+                    }
                 }
                 matched == "\u001Bc" -> {
-                    // Full reset
-                    target.clear()
-                    cursorRow = 1
-                    cursorCol = 1
-                    onClearScreen?.invoke()
+                    if (isAlternateScreen) {
+                        initAltScreen(terminalRows)
+                        renderAltToTarget(target)
+                    } else {
+                        target.clear()
+                        onClearScreen?.invoke()
+                    }
                 }
             }
 
@@ -147,10 +165,16 @@ class AnsiParser(private var theme: TerminalTheme) {
 
         if (lastEnd < textToParse.length) {
             val chunk = textToParse.substring(lastEnd)
-            processTextChunk(target, chunk)
+            if (isAlternateScreen) {
+                processAltChunk(chunk)
+            } else {
+                appendCleanChunk(target, chunk)
+            }
         }
 
-        if (!isAlternateScreen) {
+        if (isAlternateScreen) {
+            renderAltToTarget(target)
+        } else {
             trimBufferIfNeeded(target)
         }
     }
@@ -161,116 +185,218 @@ class AnsiParser(private var theme: TerminalTheme) {
             "H", "f" -> {
                 // Cursor position (CUP)
                 val parts = params.split(";")
-                cursorRow = parts.getOrNull(0)?.toIntOrNull()?.coerceAtLeast(1) ?: 1
-                cursorCol = parts.getOrNull(1)?.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                val r = (parts.getOrNull(0)?.toIntOrNull() ?: 1) - 1
+                val c = (parts.getOrNull(1)?.toIntOrNull() ?: 1) - 1
+                if (!isAlternateScreen && (r > 0 || c > 0)) {
+                    enterAlternateScreen(target)
+                }
+                if (isAlternateScreen) {
+                    altCursorRow = r.coerceIn(0, (terminalRows - 1).coerceAtLeast(0))
+                    altCursorCol = c.coerceAtLeast(0)
+                }
             }
             "A" -> {
-                // Cursor Up
                 val count = params.toIntOrNull() ?: 1
-                cursorRow = (cursorRow - count).coerceAtLeast(1)
+                if (isAlternateScreen) {
+                    altCursorRow = (altCursorRow - count).coerceAtLeast(0)
+                }
             }
             "B" -> {
-                // Cursor Down
                 val count = params.toIntOrNull() ?: 1
-                cursorRow += count
+                if (isAlternateScreen) {
+                    altCursorRow = (altCursorRow + count).coerceAtMost((terminalRows - 1).coerceAtLeast(0))
+                }
             }
             "C" -> {
-                // Cursor Forward
                 val count = params.toIntOrNull() ?: 1
-                cursorCol += count
+                if (isAlternateScreen) {
+                    altCursorCol += count
+                }
             }
             "D" -> {
-                // Cursor Backward
                 val count = params.toIntOrNull() ?: 1
-                cursorCol = (cursorCol - count).coerceAtLeast(1)
+                if (isAlternateScreen) {
+                    altCursorCol = (altCursorCol - count).coerceAtLeast(0)
+                } else {
+                    for (c in 0 until count) {
+                        if (target.isNotEmpty() && target[target.length - 1] != '\n') {
+                            target.delete(target.length - 1, target.length)
+                        }
+                    }
+                }
             }
             "G", "`" -> {
-                // Cursor horizontal absolute
-                cursorCol = (params.toIntOrNull() ?: 1).coerceAtLeast(1)
+                val col = (params.toIntOrNull() ?: 1) - 1
+                if (isAlternateScreen) {
+                    altCursorCol = col.coerceAtLeast(0)
+                }
             }
             "d" -> {
-                // Line position absolute
-                cursorRow = (params.toIntOrNull() ?: 1).coerceAtLeast(1)
+                val row = (params.toIntOrNull() ?: 1) - 1
+                if (isAlternateScreen) {
+                    altCursorRow = row.coerceIn(0, (terminalRows - 1).coerceAtLeast(0))
+                }
             }
             "J" -> {
-                // Erase in Display
                 if (params == "2" || params == "3") {
-                    target.clear()
-                    cursorRow = 1
-                    cursorCol = 1
-                    onClearScreen?.invoke()
-                } else if (params == "" || params == "0") {
-                    // Clear from cursor to end of screen
-                    val (lineStart, _) = getLineRange(target, cursorRow)
-                    val eraseStart = (lineStart + cursorCol - 1).coerceIn(0, target.length)
-                    if (eraseStart < target.length) {
-                        target.delete(eraseStart, target.length)
+                    if (isAlternateScreen) {
+                        initAltScreen(terminalRows)
+                    } else {
+                        target.clear()
+                        onClearScreen?.invoke()
                     }
                 }
             }
             "K" -> {
-                // Erase in Line
-                val (lineStart, lineEnd) = getLineRange(target, cursorRow)
-                when (params) {
-                    "2" -> {
-                        // Clear entire line
-                        if (lineEnd > lineStart) {
-                            target.delete(lineStart, lineEnd)
+                if (isAlternateScreen) {
+                    ensureAltRowExists(altCursorRow)
+                    val rowBuilder = altRows[altCursorRow]
+                    when (params) {
+                        "2" -> rowBuilder.clear()
+                        "1" -> {
+                            val end = altCursorCol.coerceIn(0, rowBuilder.length)
+                            if (end > 0) rowBuilder.delete(0, end)
+                        }
+                        else -> {
+                            val start = altCursorCol.coerceIn(0, rowBuilder.length)
+                            if (start < rowBuilder.length) rowBuilder.delete(start, rowBuilder.length)
                         }
                     }
-                    "1" -> {
-                        // Clear from start of line to cursor
-                        val eraseEnd = (lineStart + cursorCol - 1).coerceIn(lineStart, lineEnd)
-                        if (eraseEnd > lineStart) {
-                            target.delete(lineStart, eraseEnd)
-                        }
-                    }
-                    else -> {
-                        // 0 or empty: clear from cursor to end of line
-                        val eraseStart = (lineStart + cursorCol - 1).coerceIn(lineStart, lineEnd)
-                        if (lineEnd > eraseStart) {
-                            target.delete(eraseStart, lineEnd)
-                        }
+                } else {
+                    if (params == "2") {
+                        val lastNl = target.lastIndexOf('\n')
+                        if (lastNl >= 0) target.delete(lastNl + 1, target.length) else target.clear()
                     }
                 }
             }
             "h" -> {
-                // Set Mode
                 if (params == "?1049" || params == "?47" || params == "?1047") {
-                    if (!isAlternateScreen) {
-                        isAlternateScreen = true
-                        mainScreenBackup = SpannableStringBuilder(target)
-                        target.clear()
-                        cursorRow = 1
-                        cursorCol = 1
-                    }
+                    enterAlternateScreen(target)
                 }
             }
             "l" -> {
-                // Reset Mode
                 if (params == "?1049" || params == "?47" || params == "?1047") {
-                    if (isAlternateScreen) {
-                        isAlternateScreen = false
-                        target.clear()
-                        mainScreenBackup?.let { target.append(it) }
-                        mainScreenBackup = null
-                        cursorRow = 1
-                        cursorCol = 1
-                    }
+                    exitAlternateScreen(target)
                 }
             }
             "n" -> {
-                // Device Status Report
                 if (params == "6") {
-                    onSendTerminalResponse?.invoke("\u001B[${cursorRow};${cursorCol}R")
+                    val r = (altCursorRow + 1)
+                    val c = (altCursorCol + 1)
+                    onSendTerminalResponse?.invoke("\u001B[${r};${c}R")
                 } else if (params == "5") {
                     onSendTerminalResponse?.invoke("\u001B[0n")
                 }
             }
             "c" -> {
-                // Device Attributes
-                onSendTerminalResponse?.invoke("\u001B[?1;2c")
+                if (params.isEmpty() || params == "0") {
+                    onSendTerminalResponse?.invoke("\u001B[?1;2c")
+                }
             }
+        }
+    }
+
+    private fun enterAlternateScreen(target: Editable) {
+        if (!isAlternateScreen) {
+            isAlternateScreen = true
+            mainScreenBackup = SpannableStringBuilder(target)
+            initAltScreen(terminalRows)
+            renderAltToTarget(target)
+        }
+    }
+
+    private fun exitAlternateScreen(target: Editable) {
+        if (isAlternateScreen) {
+            isAlternateScreen = false
+            target.clear()
+            mainScreenBackup?.let { target.append(it) }
+            mainScreenBackup = null
+            altRows.clear()
+            altCursorRow = 0
+            altCursorCol = 0
+        }
+    }
+
+    private fun initAltScreen(rows: Int) {
+        altRows.clear()
+        val count = rows.coerceIn(10, 100)
+        for (i in 0 until count) {
+            altRows.add(SpannableStringBuilder())
+        }
+        altCursorRow = 0
+        altCursorCol = 0
+    }
+
+    private fun ensureAltRowExists(row: Int) {
+        while (altRows.size <= row) {
+            altRows.add(SpannableStringBuilder())
+        }
+    }
+
+    private fun processAltChunk(chunk: String) {
+        val segment = StringBuilder()
+        for (i in chunk.indices) {
+            val c = chunk[i]
+            when (c) {
+                '\r' -> {
+                    if (segment.isNotEmpty()) {
+                        writeAltSegment(segment.toString())
+                        segment.setLength(0)
+                    }
+                    altCursorCol = 0
+                }
+                '\n' -> {
+                    if (segment.isNotEmpty()) {
+                        writeAltSegment(segment.toString())
+                        segment.setLength(0)
+                    }
+                    altCursorRow = (altCursorRow + 1).coerceAtMost((terminalRows - 1).coerceAtLeast(0))
+                    altCursorCol = 0
+                }
+                '\b' -> {
+                    if (segment.isNotEmpty()) {
+                        segment.deleteCharAt(segment.length - 1)
+                    } else if (altCursorCol > 0) {
+                        altCursorCol--
+                    }
+                }
+                '\t' -> {
+                    val spaces = 8 - ((altCursorCol + segment.length) % 8)
+                    for (s in 0 until spaces) segment.append(' ')
+                }
+                else -> {
+                    if (c >= ' ' && c.code != 127) {
+                        segment.append(c)
+                    }
+                }
+            }
+        }
+        if (segment.isNotEmpty()) {
+            writeAltSegment(segment.toString())
+        }
+    }
+
+    private fun writeAltSegment(text: String) {
+        ensureAltRowExists(altCursorRow)
+        val rowBuilder = altRows[altCursorRow]
+        if (altCursorCol > rowBuilder.length) {
+            val pad = " ".repeat(altCursorCol - rowBuilder.length)
+            rowBuilder.append(pad)
+        }
+        val insertPos = altCursorCol.coerceIn(0, rowBuilder.length)
+        val overwriteLen = minOf(text.length, rowBuilder.length - insertPos)
+        if (overwriteLen > 0) {
+            rowBuilder.delete(insertPos, insertPos + overwriteLen)
+        }
+        insertStyled(rowBuilder, insertPos, text)
+        altCursorCol += text.length
+    }
+
+    private fun renderAltToTarget(target: Editable) {
+        target.clear()
+        for (i in altRows.indices) {
+            if (i > 0) target.append("\n")
+            target.append(altRows[i])
         }
     }
 
@@ -339,82 +465,53 @@ class AnsiParser(private var theme: TerminalTheme) {
         }
     }
 
-    private fun processTextChunk(target: Editable, chunk: String) {
-        val segment = StringBuilder()
+    private fun appendCleanChunk(target: Editable, chunk: String) {
+        val clean = StringBuilder()
         for (i in chunk.indices) {
             val c = chunk[i]
-            when (c) {
-                '\r' -> {
-                    if (segment.isNotEmpty()) {
-                        writeSegment(target, segment.toString())
-                        segment.setLength(0)
-                    }
-                    cursorCol = 1
-                }
-                '\n' -> {
-                    if (segment.isNotEmpty()) {
-                        writeSegment(target, segment.toString())
-                        segment.setLength(0)
-                    }
-                    cursorRow++
-                    cursorCol = 1
-                }
-                '\b' -> {
-                    if (segment.isNotEmpty()) {
-                        segment.deleteCharAt(segment.length - 1)
-                    } else if (cursorCol > 1) {
-                        cursorCol--
-                        val (lineStart, lineEnd) = getLineRange(target, cursorRow)
-                        val delPos = lineStart + cursorCol - 1
-                        if (delPos < lineEnd) {
-                            target.delete(delPos, delPos + 1)
-                        }
+            when {
+                c == '\b' -> {
+                    if (clean.isNotEmpty()) {
+                        clean.deleteCharAt(clean.length - 1)
+                    } else if (target.isNotEmpty() && target[target.length - 1] != '\n') {
+                        target.delete(target.length - 1, target.length)
                     }
                 }
-                '\t' -> {
-                    // Tab stop (every 8 spaces)
-                    val spaces = 8 - ((cursorCol - 1 + segment.length) % 8)
-                    for (s in 0 until spaces) segment.append(' ')
+                c == '\r' -> {
+                    if (clean.isNotEmpty()) {
+                        appendStyled(target, clean.toString())
+                        clean.setLength(0)
+                    }
+                    val lastNl = target.lastIndexOf('\n')
+                    if (lastNl >= 0) {
+                        target.delete(lastNl + 1, target.length)
+                    } else {
+                        target.clear()
+                    }
+                }
+                c == '\t' || c == '\n' -> {
+                    clean.append(c)
+                }
+                c < ' ' || c.code == 127 -> {
+                    // Drop unprintable control characters
                 }
                 else -> {
-                    if (c >= ' ' && c.code != 127) {
-                        segment.append(c)
-                    }
+                    clean.append(c)
                 }
             }
         }
 
-        if (segment.isNotEmpty()) {
-            writeSegment(target, segment.toString())
+        if (clean.isNotEmpty()) {
+            appendStyled(target, clean.toString())
         }
     }
 
-    private fun writeSegment(target: Editable, text: String) {
-        ensureLineCount(target, cursorRow)
-        val (lineStart, lineEnd) = getLineRange(target, cursorRow)
-        val colOffset = (cursorCol - 1).coerceAtLeast(0)
-        val lineLen = lineEnd - lineStart
-
-        // Pad line with spaces if cursor is past end of line
-        if (colOffset > lineLen) {
-            val padding = " ".repeat(colOffset - lineLen)
-            target.insert(lineEnd, padding)
-        }
-
-        val updatedLineEnd = lineEnd + if (colOffset > lineLen) (colOffset - lineLen) else 0
-        val insertPos = lineStart + colOffset
-
-        // Overwrite existing characters if any, up to the end of the line
-        val overwriteLen = minOf(text.length, (updatedLineEnd - insertPos).coerceAtLeast(0))
-        if (overwriteLen > 0) {
-            target.delete(insertPos, insertPos + overwriteLen)
-        }
-
-        insertStyled(target, insertPos, text)
-        cursorCol += text.length
+    private fun appendStyled(target: Editable, text: String) {
+        insertStyled(target, target.length, text)
     }
 
     private fun insertStyled(target: Editable, position: Int, text: String) {
+        if (text.isEmpty()) return
         val fg = if (isInverse) (currentBgColor ?: theme.backgroundColor) else currentFgColor
         val bg = if (isInverse) currentFgColor else currentBgColor
 
@@ -434,46 +531,12 @@ class AnsiParser(private var theme: TerminalTheme) {
         }
     }
 
-    private fun ensureLineCount(target: Editable, requiredLines: Int) {
-        var count = 1
-        for (i in 0 until target.length) {
-            if (target[i] == '\n') count++
-        }
-        while (count < requiredLines) {
-            target.append('\n')
-            count++
-        }
-    }
-
-    private fun getLineRange(target: Editable, row: Int): Pair<Int, Int> {
-        ensureLineCount(target, row)
-        var currentLine = 1
-        var start = 0
-        for (i in 0 until target.length) {
-            if (currentLine == row) {
-                val end = target.indexOf('\n', start).let { if (it >= 0) it else target.length }
-                return Pair(start, end)
-            }
-            if (target[i] == '\n') {
-                currentLine++
-                start = i + 1
-            }
-        }
-        return Pair(start, target.length)
-    }
-
     private fun trimBufferIfNeeded(target: Editable) {
         if (target.length > MAX_BUFFER_SIZE) {
             val excess = target.length - TRIM_TARGET_SIZE
             val nextNl = target.indexOf('\n', excess)
             if (nextNl >= 0) {
                 target.delete(0, nextNl + 1)
-                // Recalculate cursorRow relative to trimmed lines
-                var linesRemoved = 1
-                for (i in 0 until nextNl) {
-                    if (target[i] == '\n') linesRemoved++
-                }
-                cursorRow = (cursorRow - linesRemoved).coerceAtLeast(1)
             } else {
                 target.delete(0, excess)
             }

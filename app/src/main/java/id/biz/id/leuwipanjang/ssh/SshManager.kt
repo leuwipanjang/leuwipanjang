@@ -125,7 +125,11 @@ class SshManager(
                     if (read > 0) {
                         val text = String(buffer, 0, read, Charsets.UTF_8)
                         withContext(Dispatchers.Main) {
-                            listener.onDataReceived(text)
+                            try {
+                                listener.onDataReceived(text)
+                            } catch (t: Throwable) {
+                                android.util.Log.e("LeuwiPanjang", "Error in onDataReceived", t)
+                            }
                         }
                     } else if (read == -1) {
                         break
@@ -166,10 +170,14 @@ class SshManager(
     }
 
     fun updatePtySize(cols: Int, rows: Int) {
-        try {
-            channel?.setPtySize(cols, rows, cols * 8, rows * 16)
-        } catch (e: Exception) {
-            // Ignore pty resize error
+        scope.launch {
+            try {
+                if (isConnected && channel?.isConnected == true) {
+                    channel?.setPtySize(cols, rows, cols * 8, rows * 16)
+                }
+            } catch (e: Exception) {
+                // Ignore pty resize error
+            }
         }
     }
 

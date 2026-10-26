@@ -314,6 +314,9 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.tvTerminalOutput.post { updateTerminalSize() }
     }
 
+    private var lastPtyCols = 0
+    private var lastPtyRows = 0
+
     private fun updateTerminalSize() {
         val outputView = binding.tvTerminalOutput
         val width = outputView.width - outputView.paddingLeft - outputView.paddingRight
@@ -325,7 +328,12 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         if (width > 0 && height > 0 && charWidth > 0 && charHeight > 0) {
             val cols = (width / charWidth).toInt().coerceIn(20, 240)
             val rows = (height / charHeight).toInt().coerceIn(10, 100)
-            sshManager?.updatePtySize(cols, rows)
+            if (cols != lastPtyCols || rows != lastPtyRows) {
+                lastPtyCols = cols
+                lastPtyRows = rows
+                ansiParser.setTerminalDimensions(cols, rows)
+                sshManager?.updatePtySize(cols, rows)
+            }
         }
     }
 

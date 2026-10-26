@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Terminal frame -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M18,26 C18,21.6 21.6,18 26,18 L82,18 C86.4,18 90,21.6 90,26 L90,82 C90,86.4 86.4,90 82,90 L26,90 C21.6,90 18,86.4 18,82 Z" />
+
+    <!-- Top bar separator -->
+    <rect
+        android:fillColor="#0B0F19"
+        android:left="18"
+        android:top="34"
+        android:right="90"
+        android:bottom="36.5" />
+
+    <!-- Screen area -->
+    <rect
+        android:fillColor="#0B0F19"
+        android:left="20"
+        android:top="36.5"
+        android:right="88"
+        android:bottom="88" />
+
+    <!-- Terminal prompt caret  ">" -->
+    <path
+        android:fillColor="#38BDF8"
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="1"
+        android:pathData="M28,52 L36,58 L28,64 L30,66 L40,58 L30,50 Z" />
+
+    <!-- Cursor underscore -->
+    <rect
+        android:fillColor="#38BDF8"
+        android:left="42"
+        android:top="63"
+        android:right="58"
+        android:bottom="66" />
+
+</vector>

@@ -272,7 +272,24 @@
                 style="@style/Widget.LeuwiPanjang.KeyButton"
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
                 android:text="^D" />
+
+            <Button
+                android:id="@+id/keyCtrlBackslash"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="^\\"
+                android:textColor="@color/status_warning" />
+
+            <Button
+                android:id="@+id/keyCtrlZ"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="^Z" />
 
         </LinearLayout>
     </HorizontalScrollView>

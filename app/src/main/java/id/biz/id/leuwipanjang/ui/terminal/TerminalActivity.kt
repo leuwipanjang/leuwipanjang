@@ -163,8 +163,10 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.keyColon.setOnClickListener { sendSpecialKey(":") }
 
         // Ctrl shortcuts
-        binding.keyCtrlC.setOnClickListener { sendSpecialKey("\u0003") } // SIGINT
-        binding.keyCtrlD.setOnClickListener { sendSpecialKey("\u0004") } // EOF
+        binding.keyCtrlC.setOnClickListener { sendSpecialKey("\u0003") } // SIGINT (^C)
+        binding.keyCtrlD.setOnClickListener { sendSpecialKey("\u0004") } // EOF (^D)
+        binding.keyCtrlBackslash.setOnClickListener { sendSpecialKey("\u001C") } // SIGQUIT (^\ / Ctrl+\)
+        binding.keyCtrlZ.setOnClickListener { sendSpecialKey("\u001A") } // SIGTSTP (^Z / Ctrl+Z)
     }
 
     private fun updateModifierButtonState(button: View, isActive: Boolean) {
@@ -177,9 +179,19 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         var finalChars = chars
         if (isCtrlActive && chars.length == 1) {
             val c = chars[0]
-            if (c in 'a'..'z' || c in 'A'..'Z') {
-                val ctrlCode = (c.uppercaseChar().code - 64).toChar()
-                finalChars = ctrlCode.toString()
+            val ctrlChar = when (c) {
+                in 'a'..'z', in 'A'..'Z' -> (c.uppercaseChar().code - 64).toChar()
+                '\\' -> '\u001C' // SIGQUIT (Ctrl+\)
+                '[' -> '\u001B'  // ESC
+                ']' -> '\u001D'
+                '^' -> '\u001E'
+                '_' -> '\u001F'
+                '?' -> '\u007F'
+                '@', ' ' -> '\u0000'
+                else -> null
+            }
+            if (ctrlChar != null) {
+                finalChars = ctrlChar.toString()
             }
             isCtrlActive = false
             updateModifierButtonState(binding.keyCtrl, false)
@@ -422,9 +434,19 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         var toSend = input
         if (isCtrlActive) {
             val firstChar = input[0]
-            if (firstChar in 'a'..'z' || firstChar in 'A'..'Z') {
-                val ctrlCode = (firstChar.uppercaseChar().code - 64).toChar()
-                toSend = ctrlCode.toString() + input.substring(1)
+            val ctrlChar = when (firstChar) {
+                in 'a'..'z', in 'A'..'Z' -> (firstChar.uppercaseChar().code - 64).toChar()
+                '\\' -> '\u001C' // SIGQUIT (Ctrl+\)
+                '[' -> '\u001B'  // ESC
+                ']' -> '\u001D'
+                '^' -> '\u001E'
+                '_' -> '\u001F'
+                '?' -> '\u007F'
+                '@', ' ' -> '\u0000'
+                else -> null
+            }
+            if (ctrlChar != null) {
+                toSend = ctrlChar.toString() + input.substring(1)
             }
             isCtrlActive = false
             updateModifierButtonState(binding.keyCtrl, false)

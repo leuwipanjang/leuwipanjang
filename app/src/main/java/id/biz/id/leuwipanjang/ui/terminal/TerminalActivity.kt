@@ -5,11 +5,16 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import id.biz.id.leuwipanjang.R
 import id.biz.id.leuwipanjang.data.model.AuthType
 import id.biz.id.leuwipanjang.data.model.SshHost
@@ -19,6 +24,7 @@ import id.biz.id.leuwipanjang.data.repository.HostRepository
 import id.biz.id.leuwipanjang.data.repository.KeyRepository
 import id.biz.id.leuwipanjang.data.repository.SnippetRepository
 import id.biz.id.leuwipanjang.databinding.ActivityTerminalBinding
+import id.biz.id.leuwipanjang.databinding.DialogFontSizeBinding
 import id.biz.id.leuwipanjang.ssh.SshConnectionListener
 import id.biz.id.leuwipanjang.ssh.SshManager
 import id.biz.id.leuwipanjang.utils.AnsiParser
@@ -43,6 +49,9 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
     private var isCtrlActive = false
     private var isAltActive = false
+    private var isKeyboardOpen = false
+    private var currentFontSize = 14
+    private lateinit var scaleGestureDetector: ScaleGestureDetector
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +89,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         activeTheme = TerminalTheme.findById(targetHost.themeId)
         ansiParser = AnsiParser(activeTheme)
 
+        currentFontSize = targetHost.fontSize
         binding.tvTerminalTitle.text = targetHost.alias
         binding.tvTerminalSubtitle.text = "${targetHost.username}@${targetHost.hostname}:${targetHost.port}"
 
@@ -89,11 +99,13 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.tvTerminalOutput.setBackgroundColor(activeTheme.backgroundColor)
         binding.tvTerminalOutput.setTextColor(activeTheme.foregroundColor)
         binding.tvTerminalOutput.typeface = Typeface.MONOSPACE
-        binding.tvTerminalOutput.textSize = targetHost.fontSize.toFloat()
+        binding.tvTerminalOutput.textSize = currentFontSize.toFloat()
 
         binding.btnBack.setOnClickListener { handleExit() }
         binding.btnDisconnect.setOnClickListener { handleExit() }
         binding.btnRunSnippet.setOnClickListener { showSnippetRunnerDialog() }
+        binding.btnToggleKeyboard.setOnClickListener { toggleKeyboard() }
+        binding.btnFontSize.setOnClickListener { showFontSizeDialog() }
     }
 
     private fun startSshConnection(targetHost: SshHost) {
@@ -143,17 +155,49 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     private fun setupInputHandlers() {
+        // Pinch-to-zoom gesture detector for terminal font size
+        scaleGestureDetector = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            private var baseSize = currentFontSize.toFloat()
+
+            override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+                baseSize = currentFontSize.toFloat()
+                return true
+            }
+
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                val factor = detector.scaleFactor
+                val newSize = (baseSize * factor).toInt().coerceIn(8, 32)
+                if (newSize != currentFontSize) {
+                    applyFontSize(newSize)
+                }
+                return false
+            }
+
+            override fun onScaleEnd(detector: ScaleGestureDetector) {
+                saveFontSize()
+            }
+        })
+
+        binding.scrollTerminal.setOnTouchListener { _, event ->
+            scaleGestureDetector.onTouchEvent(event)
+            false
+        }
+
         // Tap on terminal output to open keyboard
         binding.tvTerminalOutput.setOnClickListener {
-            binding.etTerminalInput.requestFocus()
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.showSoftInput(binding.etTerminalInput, InputMethodManager.SHOW_IMPLICIT)
+            showKeyboard()
         }
 
         binding.scrollTerminal.setOnClickListener {
-            binding.etTerminalInput.requestFocus()
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.showSoftInput(binding.etTerminalInput, InputMethodManager.SHOW_IMPLICIT)
+            showKeyboard()
+        }
+
+        // Keep keyboard toggle button state synced with IME visibility
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+            val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            isKeyboardOpen = imeVisible
+            updateKeyboardToggleButton(imeVisible)
+            ViewCompat.onApplyWindowInsets(view, insets)
         }
 
         // Auto-focus the hidden EditText on start
@@ -199,6 +243,126 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
                 }
             }
         })
+    }
+
+    private fun toggleKeyboard() {
+        val rootInsets = ViewCompat.getRootWindowInsets(binding.root)
+        val isVisible = rootInsets?.isVisible(WindowInsetsCompat.Type.ime()) ?: isKeyboardOpen
+        if (isVisible) {
+            hideKeyboard()
+        } else {
+            showKeyboard()
+        }
+    }
+
+    private fun showKeyboard() {
+        binding.etTerminalInput.requestFocus()
+        binding.etTerminalInput.post {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            imm?.showSoftInput(binding.etTerminalInput, InputMethodManager.SHOW_IMPLICIT)
+            val insetsController = WindowCompat.getInsetsController(window, binding.etTerminalInput)
+            insetsController.show(WindowInsetsCompat.Type.ime())
+        }
+        isKeyboardOpen = true
+        updateKeyboardToggleButton(true)
+    }
+
+    private fun hideKeyboard() {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        val token = binding.etTerminalInput.windowToken ?: binding.root.windowToken
+        imm?.hideSoftInputFromWindow(token, 0)
+        val insetsController = WindowCompat.getInsetsController(window, binding.root)
+        insetsController.hide(WindowInsetsCompat.Type.ime())
+        isKeyboardOpen = false
+        updateKeyboardToggleButton(false)
+    }
+
+    private fun updateKeyboardToggleButton(isOpen: Boolean) {
+        if (isOpen) {
+            binding.btnToggleKeyboard.setImageResource(R.drawable.ic_keyboard_hide)
+            binding.btnToggleKeyboard.setColorFilter(
+                ContextCompat.getColor(this, R.color.primary)
+            )
+            binding.btnToggleKeyboard.contentDescription = getString(R.string.hide_keyboard)
+        } else {
+            binding.btnToggleKeyboard.setImageResource(R.drawable.ic_keyboard)
+            binding.btnToggleKeyboard.setColorFilter(
+                ContextCompat.getColor(this, R.color.text_primary)
+            )
+            binding.btnToggleKeyboard.contentDescription = getString(R.string.show_keyboard)
+        }
+    }
+
+    private fun applyFontSize(size: Int) {
+        currentFontSize = size.coerceIn(8, 32)
+        binding.tvTerminalOutput.textSize = currentFontSize.toFloat()
+    }
+
+    private fun saveFontSize() {
+        host?.let {
+            if (it.fontSize != currentFontSize) {
+                it.fontSize = currentFontSize
+                hostRepository.save(it)
+            }
+        }
+    }
+
+    private fun showFontSizeDialog() {
+        val dialogBinding = DialogFontSizeBinding.inflate(layoutInflater)
+        dialogBinding.tvFontSizeValue.text = "$currentFontSize sp"
+        dialogBinding.sliderFontSize.value = currentFontSize.toFloat().coerceIn(8f, 32f)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        fun updateDialogUi(size: Int) {
+            val clamped = size.coerceIn(8, 32)
+            applyFontSize(clamped)
+            dialogBinding.tvFontSizeValue.text = "$clamped sp"
+            if (dialogBinding.sliderFontSize.value != clamped.toFloat()) {
+                dialogBinding.sliderFontSize.value = clamped.toFloat()
+            }
+        }
+
+        dialogBinding.btnFontMinus.setOnClickListener {
+            if (currentFontSize > 8) {
+                updateDialogUi(currentFontSize - 1)
+            }
+        }
+
+        dialogBinding.btnFontPlus.setOnClickListener {
+            if (currentFontSize < 32) {
+                updateDialogUi(currentFontSize + 1)
+            }
+        }
+
+        dialogBinding.sliderFontSize.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                val size = value.toInt()
+                if (size != currentFontSize) {
+                    applyFontSize(size)
+                    dialogBinding.tvFontSizeValue.text = "$size sp"
+                }
+            }
+        }
+
+        dialogBinding.btnFontReset.setOnClickListener {
+            updateDialogUi(14)
+        }
+
+        dialogBinding.btnFontDone.setOnClickListener {
+            saveFontSize()
+            dialog.dismiss()
+        }
+
+        dialog.setOnDismissListener {
+            saveFontSize()
+        }
+
+        dialog.show()
     }
 
     private fun sendUserInput(input: String) {

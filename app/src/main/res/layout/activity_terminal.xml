@@ -66,11 +66,35 @@
                 android:textSize="11sp" />
         </LinearLayout>
 
+        <!-- Font Size button -->
+        <ImageView
+            android:id="@+id/btnFontSize"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/font_size"
+            android:padding="6dp"
+            android:src="@drawable/ic_format_size"
+            app:tint="@color/text_primary" />
+
+        <!-- Toggle Keyboard button -->
+        <ImageView
+            android:id="@+id/btnToggleKeyboard"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/toggle_keyboard"
+            android:padding="6dp"
+            android:src="@drawable/ic_keyboard"
+            app:tint="@color/text_primary" />
+
         <!-- Snippets runner button -->
         <ImageView
             android:id="@+id/btnRunSnippet"
             android:layout_width="36dp"
             android:layout_height="36dp"
+            android:layout_marginStart="4dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@null"
             android:padding="7dp"

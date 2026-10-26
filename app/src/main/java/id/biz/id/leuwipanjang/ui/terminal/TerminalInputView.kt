@@ -19,6 +19,9 @@ class TerminalInputView @JvmOverloads constructor(
     var onBackspace: (() -> Unit)? = null
     var onEnter: (() -> Unit)? = null
 
+    // Called by TerminalActivity to get arrow keys in correct mode
+    var getArrowKey: ((direction: Char) -> String)? = null
+
     private var currentInputConnection: TerminalInputConnection? = null
 
     init {
@@ -160,19 +163,19 @@ class TerminalInputView @JvmOverloads constructor(
                         return true
                     }
                     KeyEvent.KEYCODE_DPAD_UP -> {
-                        onCommitTextInput?.invoke("\u001B[A")
+                        onCommitTextInput?.invoke(getArrowKey?.invoke('A') ?: "\u001B[A")
                         return true
                     }
                     KeyEvent.KEYCODE_DPAD_DOWN -> {
-                        onCommitTextInput?.invoke("\u001B[B")
+                        onCommitTextInput?.invoke(getArrowKey?.invoke('B') ?: "\u001B[B")
                         return true
                     }
                     KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        onCommitTextInput?.invoke("\u001B[C")
+                        onCommitTextInput?.invoke(getArrowKey?.invoke('C') ?: "\u001B[C")
                         return true
                     }
                     KeyEvent.KEYCODE_DPAD_LEFT -> {
-                        onCommitTextInput?.invoke("\u001B[D")
+                        onCommitTextInput?.invoke(getArrowKey?.invoke('D') ?: "\u001B[D")
                         return true
                     }
                 }
@@ -231,19 +234,19 @@ class TerminalInputView @JvmOverloads constructor(
                 return true
             }
             KeyEvent.KEYCODE_DPAD_UP -> {
-                onCommitTextInput?.invoke("\u001B[A")
+                onCommitTextInput?.invoke(getArrowKey?.invoke('A') ?: "\u001B[A")
                 return true
             }
             KeyEvent.KEYCODE_DPAD_DOWN -> {
-                onCommitTextInput?.invoke("\u001B[B")
+                onCommitTextInput?.invoke(getArrowKey?.invoke('B') ?: "\u001B[B")
                 return true
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                onCommitTextInput?.invoke("\u001B[C")
+                onCommitTextInput?.invoke(getArrowKey?.invoke('C') ?: "\u001B[C")
                 return true
             }
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                onCommitTextInput?.invoke("\u001B[D")
+                onCommitTextInput?.invoke(getArrowKey?.invoke('D') ?: "\u001B[D")
                 return true
             }
         }

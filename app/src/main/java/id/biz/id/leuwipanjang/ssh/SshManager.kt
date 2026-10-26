@@ -88,8 +88,17 @@ class SshManager(
                 // Open interactive shell channel
                 val ch = sess.openChannel("shell") as ChannelShell
                 channel = ch
+                ch.setPty(true)
                 ch.setPtyType("xterm-256color")
                 ch.setPtySize(80, 24, 640, 480)
+
+                // Configure standard terminal modes (VERASE = 0x7F / 127 DEL)
+                val terminalModes = byteArrayOf(
+                    3,             // TTY opcode 3 for VERASE (erase character)
+                    0, 0, 0, 0x7F, // 32-bit integer argument: 127 DEL
+                    0              // TTY_OP_END
+                )
+                ch.setTerminalMode(terminalModes)
 
                 inputStream = ch.inputStream
                 outputStream = ch.outputStream

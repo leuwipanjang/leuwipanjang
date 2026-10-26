@@ -141,11 +141,19 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
             updateModifierButtonState(binding.keyAlt, isAltActive)
         }
 
-        // Arrow keys ANSI escape codes
-        binding.keyUp.setOnClickListener { sendSpecialKey("\u001B[A") }
-        binding.keyDown.setOnClickListener { sendSpecialKey("\u001B[B") }
-        binding.keyLeft.setOnClickListener { sendSpecialKey("\u001B[D") }
-        binding.keyRight.setOnClickListener { sendSpecialKey("\u001B[C") }
+        // Arrow keys — send Application mode (\eOX) if DECCKM active, else Normal mode (\e[X)
+        binding.keyUp.setOnClickListener {
+            sendSpecialKey(if (ansiParser.isApplicationCursorKeysActive) "\u001BOA" else "\u001B[A")
+        }
+        binding.keyDown.setOnClickListener {
+            sendSpecialKey(if (ansiParser.isApplicationCursorKeysActive) "\u001BOB" else "\u001B[B")
+        }
+        binding.keyLeft.setOnClickListener {
+            sendSpecialKey(if (ansiParser.isApplicationCursorKeysActive) "\u001BOD" else "\u001B[D")
+        }
+        binding.keyRight.setOnClickListener {
+            sendSpecialKey(if (ansiParser.isApplicationCursorKeysActive) "\u001BOC" else "\u001B[C")
+        }
 
         // Symbols
         binding.keyPipe.setOnClickListener { sendSpecialKey("|") }
@@ -257,6 +265,10 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         }
         binding.etTerminalInput.onEnter = {
             sendUserInput("\r")
+        }
+        // Route arrow keys through DECCKM-aware resolver
+        binding.etTerminalInput.getArrowKey = { direction ->
+            if (ansiParser.isApplicationCursorKeysActive) "\u001BO$direction" else "\u001B[$direction"
         }
     }
 

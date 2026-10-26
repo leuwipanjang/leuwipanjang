@@ -33,6 +33,12 @@ class AnsiParser(private var theme: TerminalTheme) {
     private var isAlternateScreen = false
     val isAlternateScreenActive: Boolean
         get() = isAlternateScreen
+
+    // Application Cursor Key Mode (DECCKM) - set by \e[?1h, reset by \e[?1l
+    // When active: arrow keys send \eOA/B/C/D instead of \e[A/B/C/D
+    private var isApplicationCursorKeys = false
+    val isApplicationCursorKeysActive: Boolean
+        get() = isApplicationCursorKeys
     private var mainScreenBackup: SpannableStringBuilder? = null
     private val altRows = ArrayList<SpannableStringBuilder>()
     private var altCursorRow = 0 // 0-based
@@ -274,11 +280,17 @@ class AnsiParser(private var theme: TerminalTheme) {
             "h" -> {
                 if (params == "?1049" || params == "?47" || params == "?1047") {
                     enterAlternateScreen(target)
+                } else if (params == "?1") {
+                    // DECCKM: Application Cursor Key Mode
+                    isApplicationCursorKeys = true
                 }
             }
             "l" -> {
                 if (params == "?1049" || params == "?47" || params == "?1047") {
                     exitAlternateScreen(target)
+                } else if (params == "?1") {
+                    // DECCKM: Normal Cursor Key Mode
+                    isApplicationCursorKeys = false
                 }
             }
             "n" -> {

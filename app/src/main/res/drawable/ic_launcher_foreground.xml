@@ -5,40 +5,45 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Terminal frame -->
+    <!-- Terminal Window Container (Inside 72x72 safe zone: 24..84) -->
+    <!-- Card background -->
     <path
-        android:fillColor="#38BDF8"
-        android:pathData="M18,26 C18,21.6 21.6,18 26,18 L82,18 C86.4,18 90,21.6 90,26 L90,82 C90,86.4 86.4,90 82,90 L26,90 C21.6,90 18,86.4 18,82 Z" />
-
-    <!-- Top bar separator -->
-    <rect
-        android:fillColor="#0B0F19"
-        android:left="18"
-        android:top="34"
-        android:right="90"
-        android:bottom="36.5" />
-
-    <!-- Screen area -->
-    <rect
-        android:fillColor="#0B0F19"
-        android:left="20"
-        android:top="36.5"
-        android:right="88"
-        android:bottom="88" />
-
-    <!-- Terminal prompt caret  ">" -->
-    <path
-        android:fillColor="#38BDF8"
+        android:fillColor="#131B2E"
         android:strokeColor="#38BDF8"
-        android:strokeWidth="1"
-        android:pathData="M28,52 L36,58 L28,64 L30,66 L40,58 L30,50 Z" />
+        android:strokeWidth="2.5"
+        android:strokeLineJoin="round"
+        android:pathData="M 30,26 L 78,26 C 81.3,26 84,28.7 84,32 L 84,76 C 84,79.3 81.3,82 78,82 L 30,82 C 26.7,82 24,79.3 24,76 L 24,32 C 24,28.7 26.7,26 30,26 Z" />
 
-    <!-- Cursor underscore -->
-    <rect
+    <!-- Title Bar Separator Line -->
+    <path
+        android:strokeColor="#2A3756"
+        android:strokeWidth="1.5"
+        android:pathData="M 24,39 L 84,39" />
+
+    <!-- Window Dots: Red, Yellow, Green -->
+    <!-- Red dot -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M 31,32.5 A 2,2 0 1,0 35,32.5 A 2,2 0 1,0 31,32.5 Z" />
+
+    <!-- Yellow dot -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M 37.5,32.5 A 2,2 0 1,0 41.5,32.5 A 2,2 0 1,0 37.5,32.5 Z" />
+
+    <!-- Green dot -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M 44,32.5 A 2,2 0 1,0 48,32.5 A 2,2 0 1,0 44,32.5 Z" />
+
+    <!-- Terminal Prompt Caret ">" -->
+    <path
         android:fillColor="#38BDF8"
-        android:left="42"
-        android:top="63"
-        android:right="58"
-        android:bottom="66" />
+        android:pathData="M 33,48 L 46,58 L 33,68 L 37.5,71.5 L 53,58 L 37.5,44.5 Z" />
+
+    <!-- Cursor Underscore "_" -->
+    <path
+        android:fillColor="#F8FAFC"
+        android:pathData="M 56,66 L 74,66 L 74,71 L 56,71 Z" />
 
 </vector>

@@ -88,12 +88,15 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
     private fun setupThemeAndUi(targetHost: SshHost) {
         activeTheme = TerminalTheme.findById(targetHost.themeId)
+        binding.tvTerminalOutput.setText("", android.widget.TextView.BufferType.EDITABLE)
         ansiParser = AnsiParser(activeTheme).apply {
             onTitleChanged = { title ->
                 binding.tvTerminalSubtitle.text = title
             }
             onClearScreen = {
-                binding.tvTerminalOutput.text = ""
+                binding.tvTerminalOutput.editableText?.clear() ?: run {
+                    binding.tvTerminalOutput.text = ""
+                }
             }
         }
 
@@ -427,8 +430,13 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     override fun onDataReceived(text: String) {
-        val styled = ansiParser.parse(text)
-        binding.tvTerminalOutput.append(styled)
+        val editable = binding.tvTerminalOutput.editableText
+        if (editable != null) {
+            ansiParser.appendTo(editable, text)
+        } else {
+            val styled = ansiParser.parse(text)
+            binding.tvTerminalOutput.append(styled)
+        }
         scrollToBottom()
     }
 

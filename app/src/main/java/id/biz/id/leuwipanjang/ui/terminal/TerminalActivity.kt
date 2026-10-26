@@ -87,7 +87,14 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
     private fun setupThemeAndUi(targetHost: SshHost) {
         activeTheme = TerminalTheme.findById(targetHost.themeId)
-        ansiParser = AnsiParser(activeTheme)
+        ansiParser = AnsiParser(activeTheme).apply {
+            onTitleChanged = { title ->
+                binding.tvTerminalSubtitle.text = title
+            }
+            onClearScreen = {
+                binding.tvTerminalOutput.text = ""
+            }
+        }
 
         currentFontSize = targetHost.fontSize
         binding.tvTerminalTitle.text = targetHost.alias

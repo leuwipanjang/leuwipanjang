@@ -46,6 +46,13 @@ class AnsiParser(private var theme: TerminalTheme) {
     private var savedAltRow = 0
     private var savedAltCol = 0
 
+    // Visual Cursor tracking
+    class TerminalCursorSpan(color: Int) : BackgroundColorSpan(color)
+    class TerminalCursorFgSpan(color: Int) : ForegroundColorSpan(color)
+
+    private var normalCursorOffsetFromEnd = 0
+    private var hasCursorPlaceholder = false
+
     private var pendingBuffer = ""
 
     companion object {
@@ -84,6 +91,8 @@ class AnsiParser(private var theme: TerminalTheme) {
     }
 
     fun appendTo(target: Editable, rawText: String) {
+        removeNormalCursor(target)
+
         val normalized = rawText.replace("\r\n", "\n")
         val combined = pendingBuffer + normalized
         pendingBuffer = ""
@@ -109,7 +118,14 @@ class AnsiParser(private var theme: TerminalTheme) {
             textToParse = combined
         }
 
-        if (textToParse.isEmpty()) return
+        if (textToParse.isEmpty()) {
+            if (isAlternateScreen) {
+                renderAltToTarget(target)
+            } else {
+                applyNormalCursor(target)
+            }
+            return
+        }
 
         val matcher = ESCAPE_PATTERN.matcher(textToParse)
         var lastEnd = 0
@@ -163,6 +179,8 @@ class AnsiParser(private var theme: TerminalTheme) {
                         renderAltToTarget(target)
                     } else {
                         target.clear()
+                        normalCursorOffsetFromEnd = 0
+                        hasCursorPlaceholder = false
                         onClearScreen?.invoke()
                     }
                 }
@@ -184,6 +202,7 @@ class AnsiParser(private var theme: TerminalTheme) {
             renderAltToTarget(target)
         } else {
             trimBufferIfNeeded(target)
+            applyNormalCursor(target)
         }
     }
 
@@ -219,15 +238,19 @@ class AnsiParser(private var theme: TerminalTheme) {
                 val count = params.toIntOrNull() ?: 1
                 if (isAlternateScreen) {
                     altCursorCol += count
+                } else {
+                    normalCursorOffsetFromEnd = (normalCursorOffsetFromEnd - count).coerceAtLeast(0)
                 }
             }
             "D" -> {
                 val count = params.toIntOrNull() ?: 1
                 if (isAlternateScreen) {
                     altCursorCol = (altCursorCol - count).coerceAtLeast(0)
+                } else {
+                    val lineStart = target.lastIndexOf('\n').let { if (it >= 0) it + 1 else 0 }
+                    val maxOffset = target.length - lineStart
+                    normalCursorOffsetFromEnd = (normalCursorOffsetFromEnd + count).coerceAtMost(maxOffset)
                 }
-                // Normal scroll mode: CSI D from server is a display cursor move only.
-                // We don't track 2D cursor position in normal mode, so this is a no-op.
             }
             "G", "`" -> {
                 val col = (params.toIntOrNull() ?: 1) - 1
@@ -267,9 +290,28 @@ class AnsiParser(private var theme: TerminalTheme) {
                         }
                     }
                 } else {
-                    if (params == "2") {
-                        val lastNl = target.lastIndexOf('\n')
-                        if (lastNl >= 0) target.delete(lastNl + 1, target.length) else target.clear()
+                    val lineStart = target.lastIndexOf('\n').let { if (it >= 0) it + 1 else 0 }
+                    when (params) {
+                        "2" -> {
+                            if (lineStart < target.length) {
+                                target.delete(lineStart, target.length)
+                            }
+                            normalCursorOffsetFromEnd = 0
+                        }
+                        "1" -> {
+                            val cursorPos = (target.length - normalCursorOffsetFromEnd).coerceIn(lineStart, target.length)
+                            if (cursorPos > lineStart) {
+                                target.delete(lineStart, cursorPos)
+                            }
+                        }
+                        else -> {
+                            // "0" or "": erase from cursor to end of line
+                            val cursorPos = (target.length - normalCursorOffsetFromEnd).coerceIn(lineStart, target.length)
+                            if (cursorPos < target.length) {
+                                target.delete(cursorPos, target.length)
+                            }
+                            normalCursorOffsetFromEnd = 0
+                        }
                     }
                 }
             }
@@ -308,6 +350,7 @@ class AnsiParser(private var theme: TerminalTheme) {
 
     private fun enterAlternateScreen(target: Editable) {
         if (!isAlternateScreen) {
+            removeNormalCursor(target)
             isAlternateScreen = true
             mainScreenBackup = SpannableStringBuilder(target)
             initAltScreen(terminalRows)
@@ -324,6 +367,8 @@ class AnsiParser(private var theme: TerminalTheme) {
             altRows.clear()
             altCursorRow = 0
             altCursorCol = 0
+            normalCursorOffsetFromEnd = 0
+            hasCursorPlaceholder = false
         }
     }
 
@@ -404,9 +449,40 @@ class AnsiParser(private var theme: TerminalTheme) {
 
     private fun renderAltToTarget(target: Editable) {
         val full = SpannableStringBuilder()
+        val rCursor = altCursorRow.coerceIn(0, (terminalRows - 1).coerceAtLeast(0))
+        val cCursor = altCursorCol.coerceAtLeast(0)
+
         for (i in altRows.indices) {
             if (i > 0) full.append("\n")
-            full.append(altRows[i])
+            val row = SpannableStringBuilder(altRows[i])
+            if (i == rCursor) {
+                if (cCursor < row.length) {
+                    row.setSpan(
+                        TerminalCursorSpan(theme.cursorColor),
+                        cCursor,
+                        cCursor + 1,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                    row.setSpan(
+                        TerminalCursorFgSpan(theme.backgroundColor),
+                        cCursor,
+                        cCursor + 1,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                } else {
+                    val pad = " ".repeat(cCursor - row.length)
+                    row.append(pad)
+                    val cursorIndex = row.length
+                    row.append(" ")
+                    row.setSpan(
+                        TerminalCursorSpan(theme.cursorColor),
+                        cursorIndex,
+                        cursorIndex + 1,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+            }
+            full.append(row)
         }
         target.replace(0, target.length, full)
     }
@@ -476,43 +552,110 @@ class AnsiParser(private var theme: TerminalTheme) {
         }
     }
 
+    private fun removeNormalCursor(target: Editable) {
+        if (hasCursorPlaceholder && target.isNotEmpty()) {
+            target.delete(target.length - 1, target.length)
+            hasCursorPlaceholder = false
+        }
+        val bgSpans = target.getSpans(0, target.length, TerminalCursorSpan::class.java)
+        for (s in bgSpans) target.removeSpan(s)
+        val fgSpans = target.getSpans(0, target.length, TerminalCursorFgSpan::class.java)
+        for (s in fgSpans) target.removeSpan(s)
+    }
+
+    private fun applyNormalCursor(target: Editable) {
+        val lineStart = target.lastIndexOf('\n').let { if (it >= 0) it + 1 else 0 }
+        val lineLen = target.length - lineStart
+        val offset = normalCursorOffsetFromEnd.coerceIn(0, lineLen)
+        if (offset > 0) {
+            val cursorIdx = target.length - offset
+            if (cursorIdx in 0 until target.length) {
+                target.setSpan(
+                    TerminalCursorSpan(theme.cursorColor),
+                    cursorIdx,
+                    cursorIdx + 1,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                target.setSpan(
+                    TerminalCursorFgSpan(theme.backgroundColor),
+                    cursorIdx,
+                    cursorIdx + 1,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+        } else {
+            val insertPos = target.length
+            target.append(" ")
+            target.setSpan(
+                TerminalCursorSpan(theme.cursorColor),
+                insertPos,
+                insertPos + 1,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            hasCursorPlaceholder = true
+        }
+    }
+
     private fun appendCleanChunk(target: Editable, chunk: String) {
         val clean = StringBuilder()
         var i = 0
+
+        fun flushClean() {
+            if (clean.isNotEmpty()) {
+                val textStr = clean.toString()
+                clean.setLength(0)
+                if (normalCursorOffsetFromEnd > 0) {
+                    val pos = (target.length - normalCursorOffsetFromEnd).coerceIn(0, target.length)
+                    val overwriteLen = minOf(textStr.length, normalCursorOffsetFromEnd)
+                    if (overwriteLen > 0) {
+                        target.delete(pos, pos + overwriteLen)
+                    }
+                    insertStyled(target, pos, textStr)
+                    normalCursorOffsetFromEnd = (normalCursorOffsetFromEnd - textStr.length).coerceAtLeast(0)
+                } else {
+                    appendStyled(target, textStr)
+                    normalCursorOffsetFromEnd = 0
+                }
+            }
+        }
+
         while (i < chunk.length) {
             val c = chunk[i]
             when {
                 c == '\b' -> {
-                    if (clean.isNotEmpty()) {
-                        clean.deleteCharAt(clean.length - 1)
-                    } else {
-                        // Distinguish erase sequence (\b<space>\b) from standalone \b (cursor left)
-                        // Erase sequence: server wants to visually delete a character
-                        // Standalone \b: cursor movement only (e.g. bash readline moving left) — no-op for display
-                        val isEraseSeq = i + 2 < chunk.length && chunk[i + 1] == ' ' && chunk[i + 2] == '\b'
-                        if (isEraseSeq) {
-                            // Consume the full \b<space>\b pattern
-                            if (target.isNotEmpty() && target[target.length - 1] != '\n') {
-                                target.delete(target.length - 1, target.length)
-                            }
-                            i += 2 // skip space and next \b; outer i++ will skip past the last \b
+                    flushClean()
+                    val isEraseSeq = i + 2 < chunk.length && chunk[i + 1] == ' ' && chunk[i + 2] == '\b'
+                    if (isEraseSeq) {
+                        val lineStart = target.lastIndexOf('\n').let { if (it >= 0) it + 1 else 0 }
+                        val cursorPos = (target.length - normalCursorOffsetFromEnd).coerceIn(lineStart, target.length)
+                        if (cursorPos > lineStart) {
+                            target.delete(cursorPos - 1, cursorPos)
                         }
-                        // else standalone \b = cursor left, no display change
+                        i += 2
+                    } else {
+                        val lineStart = target.lastIndexOf('\n').let { if (it >= 0) it + 1 else 0 }
+                        val maxOffset = target.length - lineStart
+                        if (normalCursorOffsetFromEnd < maxOffset) {
+                            normalCursorOffsetFromEnd++
+                        }
                     }
                 }
                 c == '\r' -> {
-                    if (clean.isNotEmpty()) {
-                        appendStyled(target, clean.toString())
-                        clean.setLength(0)
-                    }
+                    flushClean()
                     val lastNl = target.lastIndexOf('\n')
                     if (lastNl >= 0) {
                         target.delete(lastNl + 1, target.length)
                     } else {
                         target.clear()
                     }
+                    normalCursorOffsetFromEnd = 0
                 }
-                c == '\t' || c == '\n' -> {
+                c == '\n' -> {
+                    flushClean()
+                    appendStyled(target, "\n")
+                    normalCursorOffsetFromEnd = 0
+                }
+                c == '\t' -> {
                     clean.append(c)
                 }
                 c < ' ' || c.code == 127 -> {
@@ -525,9 +668,7 @@ class AnsiParser(private var theme: TerminalTheme) {
             i++
         }
 
-        if (clean.isNotEmpty()) {
-            appendStyled(target, clean.toString())
-        }
+        flushClean()
     }
 
     private fun appendStyled(target: Editable, text: String) {

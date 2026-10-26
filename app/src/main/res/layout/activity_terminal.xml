@@ -232,6 +232,22 @@
                 android:text="▶" />
 
             <Button
+                android:id="@+id/keyPgUp"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="PGUP" />
+
+            <Button
+                android:id="@+id/keyPgDown"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="PGDN" />
+
+            <Button
                 android:id="@+id/keyPipe"
                 style="@style/Widget.LeuwiPanjang.KeyButton"
                 android:layout_width="wrap_content"

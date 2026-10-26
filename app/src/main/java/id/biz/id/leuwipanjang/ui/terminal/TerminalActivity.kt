@@ -156,6 +156,14 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
             sendSpecialKey(if (ansiParser.isApplicationCursorKeysActive) "\u001BOC" else "\u001B[C")
         }
 
+        // Page Up / Page Down (for scrolling in Claude Code, nano, less, vim, etc.)
+        binding.keyPgUp.setOnClickListener {
+            sendSpecialKey("\u001B[5~")
+        }
+        binding.keyPgDown.setOnClickListener {
+            sendSpecialKey("\u001B[6~")
+        }
+
         // Symbols
         binding.keyPipe.setOnClickListener { sendSpecialKey("|") }
         binding.keySlash.setOnClickListener { sendSpecialKey("/") }

@@ -177,6 +177,14 @@ class TerminalInputView @JvmOverloads constructor(
                         onCommitTextInput?.invoke(getArrowKey?.invoke('D') ?: "\u001B[D")
                         return true
                     }
+                    KeyEvent.KEYCODE_PAGE_UP -> {
+                        onCommitTextInput?.invoke("\u001B[5~")
+                        return true
+                    }
+                    KeyEvent.KEYCODE_PAGE_DOWN -> {
+                        onCommitTextInput?.invoke("\u001B[6~")
+                        return true
+                    }
                 }
                 val unicode = event.unicodeChar
                 if (unicode > 0) {
@@ -192,7 +200,9 @@ class TerminalInputView @JvmOverloads constructor(
                     KeyEvent.KEYCODE_DPAD_UP,
                     KeyEvent.KEYCODE_DPAD_DOWN,
                     KeyEvent.KEYCODE_DPAD_RIGHT,
-                    KeyEvent.KEYCODE_DPAD_LEFT -> return true
+                    KeyEvent.KEYCODE_DPAD_LEFT,
+                    KeyEvent.KEYCODE_PAGE_UP,
+                    KeyEvent.KEYCODE_PAGE_DOWN -> return true
                 }
             }
             return super.sendKeyEvent(event)
@@ -249,6 +259,14 @@ class TerminalInputView @JvmOverloads constructor(
             }
             KeyEvent.KEYCODE_DPAD_LEFT -> {
                 onCommitTextInput?.invoke(getArrowKey?.invoke('D') ?: "\u001B[D")
+                return true
+            }
+            KeyEvent.KEYCODE_PAGE_UP -> {
+                onCommitTextInput?.invoke("\u001B[5~")
+                return true
+            }
+            KeyEvent.KEYCODE_PAGE_DOWN -> {
+                onCommitTextInput?.invoke("\u001B[6~")
                 return true
             }
         }

@@ -227,12 +227,36 @@ class AnsiParser(private var theme: TerminalTheme) {
                 val count = params.toIntOrNull() ?: 1
                 if (isAlternateScreen) {
                     altCursorRow = (altCursorRow - count).coerceAtLeast(0)
+                } else {
+                    moveNormalCursorUp(target, count)
                 }
             }
             "B" -> {
                 val count = params.toIntOrNull() ?: 1
                 if (isAlternateScreen) {
                     altCursorRow = (altCursorRow + count).coerceAtMost((terminalRows - 1).coerceAtLeast(0))
+                } else {
+                    moveNormalCursorDown(target, count)
+                }
+            }
+            "E" -> {
+                // CNL: Cursor Next Line
+                val count = params.toIntOrNull() ?: 1
+                if (isAlternateScreen) {
+                    altCursorRow = (altCursorRow + count).coerceAtMost((terminalRows - 1).coerceAtLeast(0))
+                    altCursorCol = 0
+                } else {
+                    moveNormalCursorDown(target, count, toStartOfLine = true)
+                }
+            }
+            "F" -> {
+                // CPL: Cursor Previous Line
+                val count = params.toIntOrNull() ?: 1
+                if (isAlternateScreen) {
+                    altCursorRow = (altCursorRow - count).coerceAtLeast(0)
+                    altCursorCol = 0
+                } else {
+                    moveNormalCursorUp(target, count, toStartOfLine = true)
                 }
             }
             "C" -> {
@@ -257,6 +281,14 @@ class AnsiParser(private var theme: TerminalTheme) {
                 val col = (params.toIntOrNull() ?: 1) - 1
                 if (isAlternateScreen) {
                     altCursorCol = col.coerceAtLeast(0)
+                } else {
+                    val currentPos = (target.length - normalCursorOffsetFromEnd).coerceIn(0, target.length)
+                    val lineStart = target.lastIndexOf('\n', (currentPos - 1).coerceAtLeast(0)).let { if (it >= 0) it + 1 else 0 }
+                    val nextNl = target.indexOf('\n', currentPos).let { if (it >= 0) it else target.length }
+                    val lineLen = nextNl - lineStart
+                    val newCol = col.coerceIn(0, lineLen)
+                    val newPos = lineStart + newCol
+                    normalCursorOffsetFromEnd = (target.length - newPos).coerceIn(0, target.length)
                 }
             }
             "d" -> {
@@ -291,27 +323,29 @@ class AnsiParser(private var theme: TerminalTheme) {
                         }
                     }
                 } else {
-                    val lineStart = target.lastIndexOf('\n').let { if (it >= 0) it + 1 else 0 }
+                    val currentPos = (target.length - normalCursorOffsetFromEnd).coerceIn(0, target.length)
+                    val lineStart = target.lastIndexOf('\n', (currentPos - 1).coerceAtLeast(0)).let { if (it >= 0) it + 1 else 0 }
+                    val nextNl = target.indexOf('\n', currentPos)
+                    val lineEnd = if (nextNl >= 0) nextNl else target.length
                     when (params) {
                         "2" -> {
-                            if (lineStart < target.length) {
-                                target.delete(lineStart, target.length)
+                            if (lineStart < lineEnd) {
+                                target.delete(lineStart, lineEnd)
                             }
-                            normalCursorOffsetFromEnd = 0
+                            normalCursorOffsetFromEnd = (target.length - lineStart).coerceIn(0, target.length)
                         }
                         "1" -> {
-                            val cursorPos = (target.length - normalCursorOffsetFromEnd).coerceIn(lineStart, target.length)
-                            if (cursorPos > lineStart) {
-                                target.delete(lineStart, cursorPos)
+                            if (lineStart < currentPos) {
+                                target.delete(lineStart, currentPos)
                             }
+                            normalCursorOffsetFromEnd = (target.length - lineStart).coerceIn(0, target.length)
                         }
                         else -> {
-                            // "0" or "": erase from cursor to end of line
-                            val cursorPos = (target.length - normalCursorOffsetFromEnd).coerceIn(lineStart, target.length)
-                            if (cursorPos < target.length) {
-                                target.delete(cursorPos, target.length)
+                            // "0" or "": erase from cursor to end of current line
+                            if (currentPos < lineEnd) {
+                                target.delete(currentPos, lineEnd)
                             }
-                            normalCursorOffsetFromEnd = 0
+                            normalCursorOffsetFromEnd = (target.length - currentPos).coerceIn(0, target.length)
                         }
                     }
                 }
@@ -667,6 +701,58 @@ class AnsiParser(private var theme: TerminalTheme) {
         }
     }
 
+    private fun moveNormalCursorUp(target: Editable, count: Int, toStartOfLine: Boolean = false) {
+        val currentPos = (target.length - normalCursorOffsetFromEnd).coerceIn(0, target.length)
+        val currentLineStart = target.lastIndexOf('\n', (currentPos - 1).coerceAtLeast(0)).let { if (it >= 0) it + 1 else 0 }
+        val currentCol = currentPos - currentLineStart
+
+        var searchIndex = currentLineStart - 1
+        var remaining = count
+        var destLineStart = 0
+        var destLineEnd = 0
+
+        while (searchIndex >= 0 && remaining > 0) {
+            val prevNl = target.lastIndexOf('\n', searchIndex)
+            destLineStart = if (prevNl >= 0) prevNl + 1 else 0
+            destLineEnd = searchIndex + 1
+            remaining--
+            searchIndex = destLineStart - 2
+        }
+
+        if (remaining < count) {
+            val lineLen = (destLineEnd - 1 - destLineStart).coerceAtLeast(0)
+            val col = if (toStartOfLine) 0 else currentCol.coerceIn(0, lineLen)
+            val newPos = destLineStart + col
+            normalCursorOffsetFromEnd = (target.length - newPos).coerceIn(0, target.length)
+        }
+    }
+
+    private fun moveNormalCursorDown(target: Editable, count: Int, toStartOfLine: Boolean = false) {
+        val currentPos = (target.length - normalCursorOffsetFromEnd).coerceIn(0, target.length)
+        val currentLineStart = target.lastIndexOf('\n', (currentPos - 1).coerceAtLeast(0)).let { if (it >= 0) it + 1 else 0 }
+        val currentCol = currentPos - currentLineStart
+
+        var searchIndex = target.indexOf('\n', currentPos)
+        var remaining = count
+        var destLineStart = target.length
+        var destLineEnd = target.length
+
+        while (searchIndex >= 0 && remaining > 0) {
+            destLineStart = searchIndex + 1
+            val nextNl = target.indexOf('\n', destLineStart)
+            destLineEnd = if (nextNl >= 0) nextNl else target.length
+            remaining--
+            searchIndex = nextNl
+        }
+
+        if (remaining < count) {
+            val lineLen = (destLineEnd - destLineStart).coerceAtLeast(0)
+            val col = if (toStartOfLine) 0 else currentCol.coerceIn(0, lineLen)
+            val newPos = destLineStart + col
+            normalCursorOffsetFromEnd = (target.length - newPos).coerceIn(0, target.length)
+        }
+    }
+
     private fun appendCleanChunk(target: Editable, chunk: String) {
         val clean = StringBuilder()
         var i = 0
@@ -684,7 +770,9 @@ class AnsiParser(private var theme: TerminalTheme) {
                         normalCursorOffsetFromEnd = 0
                         justErasedAtEnd = true
                     } else {
-                        val overwriteLen = minOf(textStr.length, normalCursorOffsetFromEnd)
+                        val nextNl = target.indexOf('\n', pos)
+                        val maxOverwrite = if (nextNl >= 0) nextNl - pos else target.length - pos
+                        val overwriteLen = minOf(textStr.length, maxOverwrite.coerceAtLeast(0))
                         if (overwriteLen > 0) {
                             target.delete(pos, pos + overwriteLen)
                         }
@@ -730,19 +818,22 @@ class AnsiParser(private var theme: TerminalTheme) {
                 c == '\r' -> {
                     flushClean()
                     justErasedAtEnd = false
-                    val lastNl = target.lastIndexOf('\n')
-                    if (lastNl >= 0) {
-                        target.delete(lastNl + 1, target.length)
-                    } else {
-                        target.clear()
-                    }
-                    normalCursorOffsetFromEnd = 0
+                    val currentPos = (target.length - normalCursorOffsetFromEnd).coerceIn(0, target.length)
+                    val lineStart = target.lastIndexOf('\n', (currentPos - 1).coerceAtLeast(0)).let { if (it >= 0) it + 1 else 0 }
+                    normalCursorOffsetFromEnd = (target.length - lineStart).coerceIn(0, target.length)
                 }
                 c == '\n' -> {
                     flushClean()
                     justErasedAtEnd = false
-                    appendStyled(target, "\n")
-                    normalCursorOffsetFromEnd = 0
+                    val currentPos = (target.length - normalCursorOffsetFromEnd).coerceIn(0, target.length)
+                    val nextNl = target.indexOf('\n', currentPos)
+                    if (nextNl >= 0) {
+                        val nextLineStart = nextNl + 1
+                        normalCursorOffsetFromEnd = (target.length - nextLineStart).coerceIn(0, target.length)
+                    } else {
+                        appendStyled(target, "\n")
+                        normalCursorOffsetFromEnd = 0
+                    }
                 }
                 c == '\t' -> {
                     clean.append(c)

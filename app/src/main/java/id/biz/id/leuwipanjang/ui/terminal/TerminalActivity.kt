@@ -343,14 +343,24 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
     private fun updateTerminalSize() {
         val viewport = binding.scrollTerminal
-        val width = viewport.width - viewport.paddingLeft - viewport.paddingRight
-        val height = viewport.height - viewport.paddingTop - viewport.paddingBottom
+        val tv = binding.tvTerminalOutput
+        val width = viewport.width - viewport.paddingLeft - viewport.paddingRight - tv.paddingLeft - tv.paddingRight
+        val height = viewport.height - viewport.paddingTop - viewport.paddingBottom - tv.paddingTop - tv.paddingBottom
 
-        val charWidth = binding.tvTerminalOutput.paint.measureText("M")
-        val charHeight = binding.tvTerminalOutput.lineHeight.toFloat()
+        val paint = tv.paint
+        // Measure widest character among 'M', 'W', and horizontal line '─' (U+2500)
+        // to prevent border characters from wrapping into a second line
+        val charWidth = maxOf(
+            paint.measureText("M"),
+            paint.measureText("W"),
+            paint.measureText("─")
+        )
+        val charHeight = tv.lineHeight.toFloat()
 
         if (width > 0 && height > 0 && charWidth > 0 && charHeight > 0) {
-            val cols = (width / charWidth).toInt().coerceIn(20, 240)
+            // Apply a small safety margin (4px) to guard against subpixel antialiasing/rounding
+            val usableWidth = (width - 4).coerceAtLeast(0)
+            val cols = (usableWidth / charWidth).toInt().coerceIn(20, 240)
             val rows = (height / charHeight).toInt().coerceIn(10, 100)
             if (cols != lastPtyCols || rows != lastPtyRows) {
                 lastPtyCols = cols
@@ -529,7 +539,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
     private fun scrollToBottom() {
         binding.scrollTerminal.post {
-            binding.scrollTerminal.scrollTo(0, binding.tvTerminalOutput.bottom)
+            binding.scrollTerminal.fullScroll(View.FOCUS_DOWN)
         }
     }
 

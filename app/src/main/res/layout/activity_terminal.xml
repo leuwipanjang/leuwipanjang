@@ -176,6 +176,14 @@
                 android:text="TAB" />
 
             <Button
+                android:id="@+id/keyShiftTab"
+                style="@style/Widget.LeuwiPanjang.KeyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="4dp"
+                android:text="⇧TAB" />
+
+            <Button
                 android:id="@+id/keyCtrl"
                 style="@style/Widget.LeuwiPanjang.KeyButton"
                 android:layout_width="wrap_content"

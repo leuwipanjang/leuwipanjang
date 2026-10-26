@@ -130,6 +130,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     private fun setupAccessoryKeys() {
         binding.keyEsc.setOnClickListener { sendSpecialKey("\u001B") }
         binding.keyTab.setOnClickListener { sendSpecialKey("\t") }
+        binding.keyShiftTab.setOnClickListener { sendSpecialKey("\u001B[Z") } // Shift+Tab (Backtab)
 
         binding.keyCtrl.setOnClickListener {
             isCtrlActive = !isCtrlActive

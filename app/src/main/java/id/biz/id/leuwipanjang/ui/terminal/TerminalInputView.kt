@@ -148,7 +148,11 @@ class TerminalInputView @JvmOverloads constructor(
                         return true
                     }
                     KeyEvent.KEYCODE_TAB -> {
-                        onCommitTextInput?.invoke("\t")
+                        if (event.isShiftPressed) {
+                            onCommitTextInput?.invoke("\u001B[Z")
+                        } else {
+                            onCommitTextInput?.invoke("\t")
+                        }
                         composingText = ""
                         return true
                     }
@@ -218,7 +222,11 @@ class TerminalInputView @JvmOverloads constructor(
                 return true
             }
             KeyEvent.KEYCODE_TAB -> {
-                onCommitTextInput?.invoke("\t")
+                if (event.isShiftPressed) {
+                    onCommitTextInput?.invoke("\u001B[Z")
+                } else {
+                    onCommitTextInput?.invoke("\t")
+                }
                 resetComposing()
                 return true
             }

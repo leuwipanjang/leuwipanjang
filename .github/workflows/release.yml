@@ -93,19 +93,12 @@ jobs:
             echo "KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> "$GITHUB_ENV"
             echo "KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> "$GITHUB_ENV"
           else
-            echo "No secret keystore provided. Generating a release keystore dynamically..."
-            keytool -genkey -v -keystore app/release.keystore \
-              -alias leuwipanjang \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -storepass leuwipanjang \
-              -keypass leuwipanjang \
-              -dname "CN=LeuwiPanjang, OU=Release, O=LeuwiPanjang, L=Bandung, ST=JawaBarat, C=ID"
+            echo "Using official release keystore fallback (SHA-256: A5:69:BD:B4:B0:F7:...)"
+            echo "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" | base64 --decode > app/release.keystore
             echo "KEYSTORE_PATH=release.keystore" >> "$GITHUB_ENV"
-            echo "KEYSTORE_PASSWORD=leuwipanjang" >> "$GITHUB_ENV"
+            echo "KEYSTORE_PASSWORD=LeuwiPanjang2026!" >> "$GITHUB_ENV"
             echo "KEY_ALIAS=leuwipanjang" >> "$GITHUB_ENV"
-            echo "KEY_PASSWORD=leuwipanjang" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=LeuwiPanjang2026!" >> "$GITHUB_ENV"
           fi
 
       - name: Build Release APK & AAB

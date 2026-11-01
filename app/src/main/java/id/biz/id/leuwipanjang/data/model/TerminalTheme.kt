@@ -21,7 +21,7 @@ data class TerminalTheme(
     companion object {
         val TERMIUS_DARK = TerminalTheme(
             id = "termius_dark",
-            name = "Termius Dark (Default)",
+            name = "Midnight Dark (Default)",
             backgroundColor = Color.parseColor("#0F141C"),
             foregroundColor = Color.parseColor("#E6EDF3"),
             cursorColor = Color.parseColor("#38BDF8"),

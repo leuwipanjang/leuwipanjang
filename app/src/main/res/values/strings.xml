@@ -73,4 +73,8 @@
     <string name="delete">Delete</string>
     <string name="ok">OK</string>
     <string name="copied">Copied to clipboard</string>
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="privacy_policy_url" translatable="false">https://leuwipanjang.github.io/privacy.html</string>
+    <string name="privacy_policy_summary">How LeuwiPanjang handles your data</string>
+    <string name="about_description">Lightweight, secure SSH client and terminal for Android, built with 100%% native Kotlin, JSch 0.2+, and Bouncy Castle.</string>
 </resources>

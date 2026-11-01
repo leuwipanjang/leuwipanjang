@@ -1,13 +1,18 @@
 package id.biz.id.leuwipanjang.ui.settings
 
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import id.biz.id.leuwipanjang.R
 import id.biz.id.leuwipanjang.data.model.TerminalTheme
 import id.biz.id.leuwipanjang.databinding.FragmentSettingsBinding
 
@@ -59,6 +64,21 @@ class SettingsFragment : Fragment() {
             val size = value.toInt()
             binding.tvFontSizeLabel.text = "Font Size: ${size}pt"
             prefs.edit().putInt("default_font_size", size).apply()
+        }
+
+        // About: app version + privacy policy link (required by Google Play)
+        val versionName = runCatching {
+            requireContext().packageManager.getPackageInfo(requireContext().packageName, 0).versionName
+        }.getOrNull() ?: "?"
+        binding.tvAboutVersion.text = "LeuwiPanjang v$versionName"
+
+        binding.rowPrivacyPolicy.setOnClickListener {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.privacy_policy_url)))
+            try {
+                startActivity(intent)
+            } catch (e: ActivityNotFoundException) {
+                Toast.makeText(requireContext(), getString(R.string.privacy_policy_url), Toast.LENGTH_LONG).show()
+            }
         }
     }
 

@@ -2,53 +2,63 @@
 GOOGLE PLAY STORE LISTING METADATA - LEUWIPANJANG
 ===================================================================
 
-[1] NAMA APLIKASI (App Name - Maks 30 Karakter):
-Leuwipanjang - SSH Terminal
+[1] NAMA APLIKASI (Maks 30 karakter):
+LeuwiPanjang - SSH Client
 
-[2] DESKRIPSI SINGKAT (Short Description - Maks 80 Karakter):
-Klien Remote SSH Android yang cepat, ringan, dengan login Public Key & ANSI.
+[2] DESKRIPSI SINGKAT (Maks 80 karakter):
+Klien SSH ringan untuk Android: login key Ed25519/RSA, terminal ANSI & snippet.
 
-[3] DESKRIPSI LENGKAP (Full Description - Format Siap Paste ke Play Console):
-Leuwipanjang adalah aplikasi klien remote SSH native Android yang dirancang cepat, ringan, dan profesional seperti Termius untuk DevOps, Sysadmin, dan Pengembang Linux.
+[3] DESKRIPSI LENGKAP (Maks 4000 karakter):
+LeuwiPanjang adalah klien SSH dan emulator terminal untuk Android yang ringan, cepat, dan open source. Dibuat untuk DevOps, sysadmin, dan developer yang perlu mengakses server Linux dari mana saja.
 
-Dibangun 100% Native dengan Kotlin dan Android Runtime (ART) murni tanpa bloatware, Leuwipanjang memberikan performa terminal yang responsif, hemat baterai, dan ukuran aplikasi yang sangat minimalis (< 10 MB).
+Dibangun 100% native dengan Kotlin, tanpa iklan, tanpa pelacakan, dan ukuran aplikasi di bawah 10 MB.
 
-FITUR UTAMA:
+FITUR UTAMA
 
-🔑 AUTENTIKASI SSH PUBLIC/PRIVATE KEY (KEY VAULT)
-• Built-in Key Pair Generator: Buat kunci Ed25519 (direkomendasikan, cepat & aman) atau RSA 2048/4096-bit langsung di HP Anda.
-• Import Kunci: Paste private key OpenSSH atau PEM/PKCS#8 yang sudah ada.
-• Salin Public Key 1-Ketukan: Salin public key instan untuk ditambahkan ke server remote (~/.ssh/authorized_keys).
-• One-Liner Command: Salin perintah otomatis sekali jalan untuk remote server.
-• SHA-256 Fingerprint: Verifikasi sidik jari kunci OpenSSH standar.
-• Mendukung Private Key dengan enkripsi Passphrase.
+🔑 Autentikasi SSH Key (Key Vault)
+• Buat pasangan kunci Ed25519 (direkomendasikan) atau RSA 2048/4096-bit langsung di HP.
+• Import private key format OpenSSH atau PEM/PKCS#8, termasuk yang dilindungi passphrase.
+• Salin public key dengan satu ketukan untuk ditambahkan ke ~/.ssh/authorized_keys.
+• Salin perintah satu baris yang langsung memasang public key di server.
+• Tampilkan fingerprint SHA-256 untuk verifikasi kunci.
 
-🖥️ INTERACTIVE TERMINAL EMULATOR
-• Emulasi ANSI / xterm dengan palette 16 dan 256 warna.
-• Accessory Keys Bar lengkap di atas keyboard: ESC, TAB, CTRL, ALT, Tombol Panah (▲, ▼, ◀, ▶), Pipe (|), Slash (/), Tilde (~), Dash (-), Colon (:), serta shortcut ^C (SIGINT) dan ^D (EOF).
-• Pilihan tema tampilan terminal: Termius Dark, Dracula Cyber, Matrix Green, dan Solarized Dark.
-• Pengaturan ukuran font terminal sesuai kenyamanan mata.
+🖥️ Terminal Interaktif
+• Dukungan warna ANSI 16 dan 256 warna.
+• Baris tombol tambahan di atas keyboard: ESC, TAB, CTRL, ALT, tombol panah, PgUp/PgDn, simbol | / ~ - :, serta ^C dan ^D.
+• Bisa dipakai untuk aplikasi layar penuh seperti htop, vim, dan nano.
+• Empat tema terminal dan ukuran font yang bisa diatur.
 
-🌐 HOST & SERVER MANAGER
-• Simpan konfigurasi server tak terbatas (Alias, Hostname/IP, Port, Username, Group Tag).
-• Dukungan metode login SSH Key maupun Password.
-• Quick Connect: Hubungkan sesi terminal instan dengan tombol Play langsung dari daftar server.
+🌐 Manajer Host
+• Simpan server tanpa batas: alias, hostname/IP, port, username, dan grup.
+• Login dengan SSH key atau password.
+• Quick Connect: buka sesi langsung dari daftar host.
 
-⚡ QUICK SNIPPETS (COMMAND RUNNER)
-• Simpan dan kelompokkan perintah shell yang sering digunakan (seperti htop, docker ps, free -m, df -h, git pull, restart nginx).
-• Jalankan snippet langsung ke sesi terminal yang sedang aktif tanpa perlu mengetik ulang.
+⚡ Snippet Perintah
+• Simpan perintah yang sering dipakai, misalnya docker ps, df -h, git pull, atau systemctl status nginx.
+• Kirim snippet ke sesi terminal aktif tanpa mengetik ulang.
 
-🔒 PRIVASI & KEAMANAN
-• 100% Offline-First: Semua host, kunci privat, dan password hanya disimpan di perangkat lokal Anda.
-• Bebas Iklan dan Tanpa Pelacakan Telemetri pihak ketiga.
+🔒 Privasi
+• Semua host, password, dan private key hanya disimpan di perangkat Anda.
+• Koneksi langsung dari HP ke server Anda, tanpa server perantara.
+• Tidak ada iklan, analitik, atau SDK pelacak pihak ketiga.
+• Kode sumber terbuka di GitHub (lisensi GPLv3): github.com/leuwipanjang/leuwipanjang
 
 -------------------------------------------------------------------
-[4] KATEGORI & RATING KONTEN:
-- Kategori: Tools / Utilities (Alat)
-- Rating Konten: Everyone / Semua Umur
-- Iklan: Tidak mengandung iklan (No Ads)
+[4] ASET VISUAL:
+- Ikon aplikasi: playstore_icon_512.png (root repo, PNG 512x512)
+- Gambar fitur: feature_graphic_1024x500.png (root repo, PNG 1024x500)
+- Screenshot ponsel: 4 screenshot portrait 9:16, sisi minimal 1080 px
 
-[5] FORM KEAMANAN DATA (Data Safety Questionnaire):
-- Apakah aplikasi mengumpulkan data pengguna? JAWAB: TIDAK (No data collected).
-- Semua data SSH dan kredensial server disimpan secara lokal di memori aman perangkat pengguna.
+[5] KEBIJAKAN PRIVASI:
+https://leuwipanjang.github.io/privacy.html
+
+[6] KATEGORI & RATING KONTEN:
+- Kategori: Alat (Tools)
+- Rating Konten: Semua Umur
+- Iklan: Tidak mengandung iklan
+
+[7] FORM KEAMANAN DATA:
+- Apakah aplikasi mengumpulkan data pengguna? TIDAK.
+- Apakah aplikasi membagikan data pengguna? TIDAK.
+- Semua data SSH dan kredensial disimpan lokal di perangkat; backup aplikasi dinonaktifkan.
 ===================================================================

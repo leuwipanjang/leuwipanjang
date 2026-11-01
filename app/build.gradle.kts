@@ -3,6 +3,24 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// Version is derived from the release tag (vMAJOR.MINOR.PATCH).
+// CI passes it via VERSION_TAG; local builds fall back to the latest git tag.
+val versionTag: String = providers.environmentVariable("VERSION_TAG").orNull
+    ?: runCatching {
+        providers.exec {
+            commandLine("git", "describe", "--tags", "--abbrev=0", "--match", "v*")
+            isIgnoreExitValue = true
+        }.standardOutput.asText.get().trim()
+    }.getOrNull().orEmpty().ifBlank { "v0.0.1" }
+
+val (versionMajor, versionMinor, versionPatch) = Regex("""^v?(\d+)\.(\d+)\.(\d+)""")
+    .find(versionTag)?.destructured?.toList()?.map { it.toInt() }
+    ?: error("Invalid version tag '$versionTag', expected vMAJOR.MINOR.PATCH")
+
+require(versionMinor < 1000 && versionPatch < 1000) {
+    "MINOR and PATCH must be < 1000 to keep versionCode monotonic ($versionTag)"
+}
+
 android {
     namespace = "id.biz.id.leuwipanjang"
     compileSdk = 36
@@ -11,8 +29,9 @@ android {
         applicationId = "id.biz.id.leuwipanjang"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.1"
+        // e.g. v1.7.2 -> versionCode 1007002, versionName "1.7.2"
+        versionCode = versionMajor * 1_000_000 + versionMinor * 1_000 + versionPatch
+        versionName = "$versionMajor.$versionMinor.$versionPatch"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

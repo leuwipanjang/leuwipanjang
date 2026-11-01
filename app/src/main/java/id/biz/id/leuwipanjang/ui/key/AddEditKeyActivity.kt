@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import id.biz.id.leuwipanjang.utils.setupEdgeToEdge
 import id.biz.id.leuwipanjang.R
 import id.biz.id.leuwipanjang.data.model.KeyType
 import id.biz.id.leuwipanjang.data.model.SshKey
@@ -26,6 +27,7 @@ class AddEditKeyActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityAddEditKeyBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setupEdgeToEdge(binding.root)
 
         keyRepository = KeyRepository(this)
 

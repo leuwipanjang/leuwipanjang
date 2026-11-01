@@ -11,6 +11,7 @@ import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -29,6 +30,7 @@ import id.biz.id.leuwipanjang.databinding.DialogFontSizeBinding
 import id.biz.id.leuwipanjang.ssh.SshConnectionListener
 import id.biz.id.leuwipanjang.ssh.SshManager
 import id.biz.id.leuwipanjang.utils.AnsiParser
+import id.biz.id.leuwipanjang.utils.setupEdgeToEdge
 
 class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
@@ -58,6 +60,9 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         super.onCreate(savedInstanceState)
         binding = ActivityTerminalBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Predictive back (default on targetSdk 36) no longer calls onBackPressed()
+        onBackPressedDispatcher.addCallback(this) { handleExit() }
 
         hostRepository = HostRepository(this)
         keyRepository = KeyRepository(this)
@@ -263,11 +268,11 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         }
 
         // Keep keyboard toggle button state synced with IME visibility
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+        // (also pads the layout for system bars + IME, since the window is edge-to-edge)
+        setupEdgeToEdge(binding.root) { insets ->
             val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
             isKeyboardOpen = imeVisible
             updateKeyboardToggleButton(imeVisible)
-            ViewCompat.onApplyWindowInsets(view, insets)
         }
 
         binding.scrollTerminal.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
@@ -568,9 +573,6 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         }
     }
 
-    override fun onBackPressed() {
-        handleExit()
-    }
 
     override fun onDestroy() {
         super.onDestroy()

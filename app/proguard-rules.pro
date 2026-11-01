@@ -15,3 +15,7 @@
 # Keep AndroidX & Material
 -keep class androidx.appcompat.** { *; }
 -keep class com.google.android.material.** { *; }
+
+# Keep line numbers in crash stack traces (mapping file is bundled in the AAB)
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

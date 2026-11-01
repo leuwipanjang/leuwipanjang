@@ -2,6 +2,7 @@ package id.biz.id.leuwipanjang.ui
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import id.biz.id.leuwipanjang.utils.setupEdgeToEdge
 import androidx.fragment.app.Fragment
 import id.biz.id.leuwipanjang.R
 import id.biz.id.leuwipanjang.databinding.ActivityMainBinding
@@ -23,6 +24,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setupEdgeToEdge(binding.root, padForIme = false)
 
         if (savedInstanceState == null) {
             loadFragment(hostListFragment)

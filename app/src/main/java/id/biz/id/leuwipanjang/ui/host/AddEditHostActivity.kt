@@ -7,6 +7,7 @@ import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import id.biz.id.leuwipanjang.utils.setupEdgeToEdge
 import id.biz.id.leuwipanjang.R
 import id.biz.id.leuwipanjang.data.model.AuthType
 import id.biz.id.leuwipanjang.data.model.SshHost
@@ -34,6 +35,7 @@ class AddEditHostActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityAddEditHostBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        setupEdgeToEdge(binding.root)
 
         hostRepository = HostRepository(this)
         keyRepository = KeyRepository(this)

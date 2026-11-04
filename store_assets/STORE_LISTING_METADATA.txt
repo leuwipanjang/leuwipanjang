@@ -61,4 +61,19 @@ https://leuwipanjang.github.io/privacy.html
 - Apakah aplikasi mengumpulkan data pengguna? TIDAK.
 - Apakah aplikasi membagikan data pengguna? TIDAK.
 - Semua data SSH dan kredensial disimpan lokal di perangkat; backup aplikasi dinonaktifkan.
+
+[8] DEKLARASI FOREGROUND SERVICE (App content > Foreground service permissions):
+- Jenis: Special use (FOREGROUND_SERVICE_SPECIAL_USE)
+- Deskripsi fitur (EN):
+  LeuwiPanjang is an SSH client. When the user opens an interactive terminal session to
+  their own server, a foreground service keeps that network connection alive while the user
+  switches to another app or the screen turns off, so running commands are not interrupted.
+  The service starts only from a user-initiated connection, shows an ongoing notification
+  listing the active sessions with a "Disconnect all" action, and stops as soon as the last
+  session is closed. No other foreground service type fits a user-controlled, long-running
+  interactive remote shell, and dataSync is time-limited on Android 15+.
+- Dampak bila ditunda/dihentikan sistem: koneksi SSH terputus, perintah yang sedang berjalan
+  di server berhenti, dan pengguna kehilangan sesi interaktifnya.
+- Video demo: buka host, jalankan perintah, tekan Home / matikan layar, kembali ke aplikasi
+  (sesi masih tersambung), lalu tunjukkan notifikasi dan tombol "Disconnect all".
 ===================================================================

@@ -15,11 +15,23 @@ import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
 
+/**
+ * One SSH shell session. It is owned by [SessionRegistry] (kept alive by
+ * [SshSessionService]), not by the terminal screen, so it survives the app going to the
+ * background, the screen turning off and the activity being recreated. A terminal screen
+ * [attach]es to receive output and replays [transcript] to restore what it missed.
+ */
 class SshManager(
-    private val host: SshHost,
-    private val sshKey: SshKey? = null,
-    private val listener: SshConnectionListener
+    val host: SshHost,
+    private val sshKey: SshKey? = null
 ) {
+    private val lock = Any()
+    private val transcript = StringBuilder()
+
+    /** Current terminal screen, or null while the session runs in the background. Main thread only. */
+    private var listener: SshConnectionListener? = null
+    private val closed = java.util.concurrent.atomic.AtomicBoolean(false)
+
     private var jsch: JSch? = null
     private var session: Session? = null
     private var channel: ChannelShell? = null
@@ -31,13 +43,45 @@ class SshManager(
     private var writerJob: Job? = null
     private val sendChannel = kotlinx.coroutines.channels.Channel<ByteArray>(kotlinx.coroutines.channels.Channel.UNLIMITED)
 
+    @Volatile
     var isConnected: Boolean = false
         private set
+
+    /** True once the session has ended (failed, dropped or disconnected); it cannot be reused. */
+    val isClosed: Boolean get() = closed.get()
+
+    /**
+     * Makes [l] the receiver of further callbacks and returns the output produced so far,
+     * which the caller should render before anything else. Main thread only.
+     */
+    fun attach(l: SshConnectionListener): String = synchronized(lock) {
+        listener = l
+        transcript.toString()
+    }
+
+    /** Stops callbacks to [l] if it is still the attached screen. Main thread only. */
+    fun detach(l: SshConnectionListener) {
+        if (listener === l) listener = null
+    }
+
+    private suspend fun onMain(block: (SshConnectionListener) -> Unit) {
+        withContext(Dispatchers.Main) { listener?.let(block) }
+    }
+
+    /** Runs once when the session ends, whichever path ends it. */
+    private suspend fun notifyClosed() {
+        if (!closed.compareAndSet(false, true)) return
+        isConnected = false
+        withContext(Dispatchers.Main) {
+            listener?.onDisconnected()
+            SessionRegistry.onSessionClosed(this@SshManager)
+        }
+    }
 
     fun connect() {
         scope.launch {
             try {
-                withContext(Dispatchers.Main) { listener.onConnecting() }
+                onMain { it.onConnecting() }
 
                 jsch = JSch()
 
@@ -105,8 +149,14 @@ class SshManager(
 
                 ch.connect(10000)
 
+                if (isClosed) {
+                    // disconnect() was called while connecting.
+                    ch.disconnect()
+                    sess.disconnect()
+                    return@launch
+                }
                 isConnected = true
-                withContext(Dispatchers.Main) { listener.onConnected() }
+                onMain { it.onConnected() }
 
                 // Start async reader and writer loops
                 startReadingOutput()
@@ -115,10 +165,8 @@ class SshManager(
             } catch (e: Exception) {
                 isConnected = false
                 val errorMsg = e.localizedMessage ?: e.message ?: "Failed to establish SSH connection"
-                withContext(Dispatchers.Main) {
-                    listener.onError(errorMsg)
-                    listener.onDisconnected()
-                }
+                onMain { it.onError(errorMsg) }
+                notifyClosed()
                 disconnect()
             }
         }
@@ -133,11 +181,23 @@ class SshManager(
                     val read = stream.read(buffer)
                     if (read > 0) {
                         val text = String(buffer, 0, read, Charsets.UTF_8)
+                        // Record and pick the receiver atomically with attach(), so a screen
+                        // attaching now gets each chunk exactly once (replay or callback).
+                        val target = synchronized(lock) {
+                            transcript.append(text)
+                            if (transcript.length > MAX_TRANSCRIPT) {
+                                transcript.delete(0, transcript.length - MAX_TRANSCRIPT)
+                            }
+                            listener
+                        }
                         withContext(Dispatchers.Main) {
-                            try {
-                                listener.onDataReceived(text)
-                            } catch (t: Throwable) {
-                                android.util.Log.e("LeuwiPanjang", "Error in onDataReceived", t)
+                            // Skip if that screen detached meanwhile; the next one replays it.
+                            if (target != null && target === listener) {
+                                try {
+                                    target.onDataReceived(text)
+                                } catch (t: Throwable) {
+                                    android.util.Log.e("LeuwiPanjang", "Error in onDataReceived", t)
+                                }
                             }
                         }
                     } else if (read == -1) {
@@ -147,10 +207,7 @@ class SshManager(
             } catch (e: Exception) {
                 // Channel closed or network interrupted
             } finally {
-                isConnected = false
-                withContext(Dispatchers.Main) {
-                    listener.onDisconnected()
-                }
+                withContext(kotlinx.coroutines.NonCancellable) { notifyClosed() }
             }
         }
     }
@@ -192,6 +249,10 @@ class SshManager(
 
     fun disconnect() {
         isConnected = false
+        if (readerJob == null) {
+            // Never reached the reader loop (still connecting): close the session here.
+            scope.launch { notifyClosed() }
+        }
         readerJob?.cancel()
         writerJob?.cancel()
         scope.launch {
@@ -207,5 +268,10 @@ class SshManager(
                 outputStream = null
             }
         }
+    }
+
+    companion object {
+        /** Characters of output kept for replay when a terminal screen re-attaches. */
+        private const val MAX_TRANSCRIPT = 256 * 1024
     }
 }

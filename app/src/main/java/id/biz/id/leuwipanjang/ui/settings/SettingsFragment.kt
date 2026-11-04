@@ -15,6 +15,7 @@ import androidx.fragment.app.Fragment
 import id.biz.id.leuwipanjang.R
 import id.biz.id.leuwipanjang.data.model.TerminalTheme
 import id.biz.id.leuwipanjang.databinding.FragmentSettingsBinding
+import id.biz.id.leuwipanjang.ssh.SshSessionService
 
 class SettingsFragment : Fragment() {
 
@@ -64,6 +65,13 @@ class SettingsFragment : Fragment() {
             val size = value.toInt()
             binding.tvFontSizeLabel.text = "Font Size: ${size}pt"
             prefs.edit().putInt("default_font_size", size).apply()
+        }
+
+        // Connection: optional wake lock for background sessions
+        binding.switchKeepAwake.isChecked = prefs.getBoolean(SshSessionService.PREF_WAKE_LOCK, false)
+        binding.switchKeepAwake.setOnCheckedChangeListener { _, checked ->
+            prefs.edit().putBoolean(SshSessionService.PREF_WAKE_LOCK, checked).apply()
+            SshSessionService.refresh(requireContext())
         }
 
         // About: app version + privacy policy link (required by Google Play)

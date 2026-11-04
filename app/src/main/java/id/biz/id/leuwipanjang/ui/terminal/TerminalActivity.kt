@@ -1,6 +1,9 @@
 package id.biz.id.leuwipanjang.ui.terminal
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
@@ -27,6 +30,8 @@ import id.biz.id.leuwipanjang.data.repository.KeyRepository
 import id.biz.id.leuwipanjang.data.repository.SnippetRepository
 import id.biz.id.leuwipanjang.databinding.ActivityTerminalBinding
 import id.biz.id.leuwipanjang.databinding.DialogFontSizeBinding
+import androidx.activity.result.contract.ActivityResultContracts
+import id.biz.id.leuwipanjang.ssh.SessionRegistry
 import id.biz.id.leuwipanjang.ssh.SshConnectionListener
 import id.biz.id.leuwipanjang.ssh.SshManager
 import id.biz.id.leuwipanjang.utils.AnsiParser
@@ -57,6 +62,14 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     private var isKeyboardOpen = false
     private var currentFontSize = 6
     private lateinit var scaleGestureDetector: ScaleGestureDetector
+
+    /** True while replaying a re-attached session's output, so its queries aren't answered twice. */
+    private var isReplaying = false
+
+    // Android 13+: the "session active" notification needs permission. Sessions keep
+    // running without it; the notification is just hidden.
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -116,7 +129,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
                 }
             }
             onSendTerminalResponse = { response ->
-                sshManager?.send(response)
+                if (!isReplaying) sshManager?.send(response)
             }
         }
 
@@ -139,9 +152,41 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.btnFontSize.setOnClickListener { showFontSizeDialog() }
     }
 
+    /** Re-attaches to this host's running session if there is one, else opens a new one. */
     private fun startSshConnection(targetHost: SshHost) {
-        sshManager = SshManager(targetHost, sshKey, this)
-        sshManager?.connect()
+        val existing = SessionRegistry.get(targetHost.id)
+        if (existing != null) {
+            sshManager = existing
+            val history = existing.attach(this)
+            if (history.isNotEmpty()) {
+                isReplaying = true
+                try {
+                    onDataReceived(history)
+                } finally {
+                    isReplaying = false
+                }
+            }
+            // A toast, not an appended line: text written around the ANSI parser would put
+            // the next output on the wrong line (or inside a full-screen app's screen).
+            Toast.makeText(this, R.string.terminal_reattached, Toast.LENGTH_SHORT).show()
+            binding.viewStatusDot.setBackgroundColor(
+                Color.parseColor(if (existing.isConnected) "#10B981" else "#F59E0B")
+            )
+            scrollToBottom()
+            return
+        }
+
+        requestNotificationPermission()
+        sshManager = SessionRegistry.open(this, targetHost, sshKey).also { it.attach(this) }
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     private fun setupAccessoryKeys() {
@@ -568,24 +613,29 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     private fun handleExit() {
-        if (sshManager?.isConnected == true) {
+        val session = sshManager
+        if (session?.isConnected == true) {
             AlertDialog.Builder(this)
                 .setTitle(R.string.terminal_disconnect)
                 .setMessage(R.string.confirm_disconnect)
                 .setPositiveButton(R.string.terminal_disconnect) { _, _ ->
-                    sshManager?.disconnect()
+                    SessionRegistry.close(session)
                     finish()
                 }
+                .setNeutralButton(R.string.terminal_keep_in_background) { _, _ -> finish() }
                 .setNegativeButton(R.string.cancel, null)
                 .show()
         } else {
+            // Still connecting (or already gone): leaving abandons the attempt.
+            session?.let { SessionRegistry.close(it) }
             finish()
         }
     }
 
-
     override fun onDestroy() {
         super.onDestroy()
-        sshManager?.disconnect()
+        // The session belongs to SessionRegistry and keeps running (e.g. the app went to the
+        // background or the activity is being recreated); this screen just stops listening.
+        sshManager?.detach(this)
     }
 }

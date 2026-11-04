@@ -18,6 +18,8 @@
 
         <ImageView
             android:id="@+id/btnBack"
+            android:focusable="true"
+            android:foreground="@drawable/focus_ring"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:background="?attr/selectableItemBackgroundBorderless"
@@ -69,6 +71,8 @@
         <!-- Font Size button -->
         <ImageView
             android:id="@+id/btnFontSize"
+            android:focusable="true"
+            android:foreground="@drawable/focus_ring"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:background="?attr/selectableItemBackgroundBorderless"
@@ -80,6 +84,8 @@
         <!-- Toggle Keyboard button -->
         <ImageView
             android:id="@+id/btnToggleKeyboard"
+            android:focusable="true"
+            android:foreground="@drawable/focus_ring"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_marginStart="4dp"
@@ -92,6 +98,8 @@
         <!-- Snippets runner button -->
         <ImageView
             android:id="@+id/btnRunSnippet"
+            android:focusable="true"
+            android:foreground="@drawable/focus_ring"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_marginStart="4dp"
@@ -104,6 +112,8 @@
         <!-- Disconnect / Reconnect button -->
         <ImageView
             android:id="@+id/btnDisconnect"
+            android:focusable="true"
+            android:foreground="@drawable/focus_ring"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_marginStart="4dp"

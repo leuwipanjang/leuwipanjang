@@ -9,6 +9,8 @@ import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import id.biz.id.leuwipanjang.data.model.SshSnippet
 import id.biz.id.leuwipanjang.databinding.ItemSnippetBinding
+import id.biz.id.leuwipanjang.utils.focusChain
+import id.biz.id.leuwipanjang.utils.highlightOnFocus
 
 class SnippetAdapter(
     private var snippets: List<SshSnippet>,
@@ -45,6 +47,8 @@ class SnippetAdapter(
             binding.tvSnippetCommand.text = snippet.command.trimEnd()
 
             binding.root.setOnClickListener { onItemClick(snippet) }
+            binding.root.highlightOnFocus()
+            focusChain(binding.root, binding.btnCopySnippet, binding.btnDeleteSnippet)
 
             binding.btnCopySnippet.setOnClickListener {
                 copyToClipboard(binding.root.context, snippet.command.trimEnd())

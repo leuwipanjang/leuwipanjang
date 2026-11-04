@@ -76,5 +76,7 @@
     <string name="privacy_policy">Privacy Policy</string>
     <string name="privacy_policy_url" translatable="false">https://leuwipanjang.github.io/privacy.html</string>
     <string name="privacy_policy_summary">How LeuwiPanjang handles your data</string>
-    <string name="about_description">Lightweight, secure SSH client and terminal for Android, built with 100%% native Kotlin, JSch 0.2+, and Bouncy Castle.</string>
+    <string name="about_description" formatted="false">Lightweight, secure SSH client and terminal for Android, built with 100% native Kotlin, JSch 0.2+, and Bouncy Castle.</string>
+    <string name="tv_terminal_start_hint">Press OK to open the keyboard. Press Back to reach the key bar.</string>
+    <string name="tv_terminal_keybar_hint">Use the D-pad to pick a key. Press Back again to exit.</string>
 </resources>

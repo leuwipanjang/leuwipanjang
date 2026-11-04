@@ -9,6 +9,8 @@ import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import id.biz.id.leuwipanjang.data.model.SshKey
 import id.biz.id.leuwipanjang.databinding.ItemKeyBinding
+import id.biz.id.leuwipanjang.utils.focusChain
+import id.biz.id.leuwipanjang.utils.highlightOnFocus
 
 class KeyAdapter(
     private var keys: List<SshKey>,
@@ -45,6 +47,8 @@ class KeyAdapter(
             binding.tvFingerprint.text = key.fingerprint
 
             binding.root.setOnClickListener { onItemClick(key) }
+            binding.root.highlightOnFocus()
+            focusChain(binding.root, binding.btnCopyPublicKey, binding.btnDeleteKey)
 
             binding.btnCopyPublicKey.setOnClickListener {
                 copyToClipboard(binding.root.context, key.publicKey)

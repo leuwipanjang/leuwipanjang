@@ -22,6 +22,24 @@ class TerminalInputView @JvmOverloads constructor(
     // Called by TerminalActivity to get arrow keys in correct mode
     var getArrowKey: ((direction: Char) -> String)? = null
 
+    // D-pad center / OK on a TV remote (opens the on-screen keyboard)
+    var onCenterPressed: (() -> Unit)? = null
+
+    companion object {
+        /** Maps a character to its Ctrl+<char> control code, or null if it has none. */
+        fun controlCharFor(c: Char): Char? = when (c) {
+            in 'a'..'z', in 'A'..'Z' -> (c.uppercaseChar().code - 64).toChar()
+            '\\' -> '\u001C' // SIGQUIT (Ctrl+\)
+            '[' -> '\u001B'  // ESC
+            ']' -> '\u001D'
+            '^' -> '\u001E'
+            '_' -> '\u001F'
+            '?' -> '\u007F'
+            '@', ' ' -> '\u0000'
+            else -> null
+        }
+    }
+
     private var currentInputConnection: TerminalInputConnection? = null
 
     init {
@@ -220,7 +238,51 @@ class TerminalInputView @JvmOverloads constructor(
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
+            onCenterPressed?.invoke()
+            return true
+        }
+
+        // Physical keyboard Ctrl+<key> (e.g. Ctrl+C) -> control character
+        if (event.isCtrlPressed) {
+            val base = event.getUnicodeChar(
+                event.metaState and (KeyEvent.META_CTRL_MASK or KeyEvent.META_ALT_MASK).inv()
+            )
+            val ctrl = if (base > 0) controlCharFor(base.toChar()) else null
+            if (ctrl != null) {
+                onCommitTextInput?.invoke(ctrl.toString())
+                resetComposing()
+                return true
+            }
+        }
+
+        // Physical keyboard left Alt+<key> -> ESC prefix (Meta). Right Alt stays AltGr.
+        if (event.metaState and KeyEvent.META_ALT_LEFT_ON != 0) {
+            val base = event.getUnicodeChar(event.metaState and KeyEvent.META_ALT_MASK.inv())
+            if (base > 0) {
+                onCommitTextInput?.invoke("\u001B" + base.toChar())
+                resetComposing()
+                return true
+            }
+        }
+
         when (keyCode) {
+            KeyEvent.KEYCODE_MOVE_HOME -> {
+                onCommitTextInput?.invoke("\u001B[H")
+                return true
+            }
+            KeyEvent.KEYCODE_MOVE_END -> {
+                onCommitTextInput?.invoke("\u001B[F")
+                return true
+            }
+            KeyEvent.KEYCODE_FORWARD_DEL -> {
+                onCommitTextInput?.invoke("\u001B[3~")
+                return true
+            }
+            KeyEvent.KEYCODE_INSERT -> {
+                onCommitTextInput?.invoke("\u001B[2~")
+                return true
+            }
             KeyEvent.KEYCODE_DEL -> {
                 onBackspace?.invoke()
                 resetComposing()

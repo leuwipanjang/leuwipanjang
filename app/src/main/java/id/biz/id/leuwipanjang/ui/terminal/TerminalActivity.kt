@@ -30,6 +30,7 @@ import id.biz.id.leuwipanjang.databinding.DialogFontSizeBinding
 import id.biz.id.leuwipanjang.ssh.SshConnectionListener
 import id.biz.id.leuwipanjang.ssh.SshManager
 import id.biz.id.leuwipanjang.utils.AnsiParser
+import id.biz.id.leuwipanjang.utils.isTv
 import id.biz.id.leuwipanjang.utils.setupEdgeToEdge
 
 class TerminalActivity : AppCompatActivity(), SshConnectionListener {
@@ -39,6 +40,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     private lateinit var binding: ActivityTerminalBinding
+    private val isTv by lazy { isTv() }
     private lateinit var hostRepository: HostRepository
     private lateinit var keyRepository: KeyRepository
     private lateinit var snippetRepository: SnippetRepository
@@ -62,7 +64,16 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         setContentView(binding.root)
 
         // Predictive back (default on targetSdk 36) no longer calls onBackPressed()
-        onBackPressedDispatcher.addCallback(this) { handleExit() }
+        onBackPressedDispatcher.addCallback(this) {
+            // On TV the D-pad drives the terminal, so the first Back moves focus
+            // out of the terminal to the key bar; Back again exits.
+            if (isTv && binding.etTerminalInput.hasFocus()) {
+                binding.keyEsc.requestFocus()
+                Toast.makeText(this@TerminalActivity, R.string.tv_terminal_keybar_hint, Toast.LENGTH_SHORT).show()
+            } else {
+                handleExit()
+            }
+        }
 
         hostRepository = HostRepository(this)
         keyRepository = KeyRepository(this)
@@ -87,6 +98,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         setupThemeAndUi(targetHost)
         setupAccessoryKeys()
         setupInputHandlers()
+        setupTvNavigation()
 
         startSshConnection(targetHost)
     }
@@ -140,11 +152,13 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.keyCtrl.setOnClickListener {
             isCtrlActive = !isCtrlActive
             updateModifierButtonState(binding.keyCtrl, isCtrlActive)
+            binding.etTerminalInput.requestFocus()
         }
 
         binding.keyAlt.setOnClickListener {
             isAltActive = !isAltActive
             updateModifierButtonState(binding.keyAlt, isAltActive)
+            binding.etTerminalInput.requestFocus()
         }
 
         // Arrow keys — send Application mode (\eOX) if DECCKM active, else Normal mode (\e[X)
@@ -192,18 +206,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.etTerminalInput.resetComposing()
         var finalChars = chars
         if (isCtrlActive && chars.length == 1) {
-            val c = chars[0]
-            val ctrlChar = when (c) {
-                in 'a'..'z', in 'A'..'Z' -> (c.uppercaseChar().code - 64).toChar()
-                '\\' -> '\u001C' // SIGQUIT (Ctrl+\)
-                '[' -> '\u001B'  // ESC
-                ']' -> '\u001D'
-                '^' -> '\u001E'
-                '_' -> '\u001F'
-                '?' -> '\u007F'
-                '@', ' ' -> '\u0000'
-                else -> null
-            }
+            val ctrlChar = TerminalInputView.controlCharFor(chars[0])
             if (ctrlChar != null) {
                 finalChars = ctrlChar.toString()
             }
@@ -216,6 +219,24 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         }
         sshManager?.send(finalChars)
         binding.etTerminalInput.requestFocus()
+    }
+
+    /**
+     * Android TV: OK on the remote opens the on-screen keyboard; the accessory key bar
+     * becomes reachable with the D-pad (it is not focusable on touch devices so it never
+     * steals focus from the terminal input there).
+     */
+    private fun setupTvNavigation() {
+        binding.etTerminalInput.onCenterPressed = { showKeyboard() }
+        // ScrollView re-enables focusable in its constructor (overriding the XML), which lets it
+        // grab D-pad / hardware-keyboard focus away from the terminal input.
+        binding.scrollTerminal.isFocusable = false
+        binding.etTerminalInput.requestFocus()
+        if (!isTv) return
+        for (i in 0 until binding.layoutAccessoryKeys.childCount) {
+            binding.layoutAccessoryKeys.getChildAt(i).isFocusable = true
+        }
+        Toast.makeText(this, R.string.tv_terminal_start_hint, Toast.LENGTH_LONG).show()
     }
 
     private fun setupInputHandlers() {
@@ -457,18 +478,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
         var toSend = input
         if (isCtrlActive) {
-            val firstChar = input[0]
-            val ctrlChar = when (firstChar) {
-                in 'a'..'z', in 'A'..'Z' -> (firstChar.uppercaseChar().code - 64).toChar()
-                '\\' -> '\u001C' // SIGQUIT (Ctrl+\)
-                '[' -> '\u001B'  // ESC
-                ']' -> '\u001D'
-                '^' -> '\u001E'
-                '_' -> '\u001F'
-                '?' -> '\u007F'
-                '@', ' ' -> '\u0000'
-                else -> null
-            }
+            val ctrlChar = TerminalInputView.controlCharFor(input[0])
             if (ctrlChar != null) {
                 toSend = ctrlChar.toString() + input.substring(1)
             }

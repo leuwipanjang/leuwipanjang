@@ -9,6 +9,8 @@ import id.biz.id.leuwipanjang.databinding.ItemHostBinding
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import id.biz.id.leuwipanjang.utils.focusChain
+import id.biz.id.leuwipanjang.utils.highlightOnFocus
 
 class HostAdapter(
     private var hosts: List<SshHost>,
@@ -54,6 +56,8 @@ class HostAdapter(
             }
 
             binding.root.setOnClickListener { onItemClick(host) }
+            binding.root.highlightOnFocus()
+            focusChain(binding.root, binding.btnQuickConnect)
             binding.btnQuickConnect.setOnClickListener { onConnectClick(host) }
         }
     }

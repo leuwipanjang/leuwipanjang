@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import id.biz.id.leuwipanjang.data.model.AuthType
 import id.biz.id.leuwipanjang.data.model.SshHost
 
 class HostRepository(context: Context) {
@@ -13,22 +12,6 @@ class HostRepository(context: Context) {
         context.getSharedPreferences("leuwipanjang_hosts", Context.MODE_PRIVATE)
     private val gson = Gson()
     private val key = "saved_hosts"
-
-    init {
-        // Initialize with friendly sample host if empty
-        if (getAll().isEmpty()) {
-            val sample = SshHost(
-                alias = "LeuwiPanjang Demo Server",
-                hostname = "demo.leuwipanjang.id",
-                port = 22,
-                username = "root",
-                authType = AuthType.KEY,
-                group = "Demo",
-                notes = "Pre-configured sample SSH server"
-            )
-            save(sample)
-        }
-    }
 
     fun getAll(): List<SshHost> {
         val json = prefs.getString(key, null) ?: return emptyList()

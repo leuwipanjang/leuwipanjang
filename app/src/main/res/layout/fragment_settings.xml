@@ -185,28 +185,6 @@
                         android:textSize="12sp" />
                 </LinearLayout>
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginBottom="12dp"
-                    android:background="@color/stroke_color" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Auto Release CI/CD"
-                    android:textColor="@color/text_primary"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Pushing commits to main automatically triggers GitHub Actions to build APK and AAB, compute semantic release tags, and publish releases."
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
-
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

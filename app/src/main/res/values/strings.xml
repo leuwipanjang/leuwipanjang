@@ -61,6 +61,15 @@
     <string name="terminal_disconnect">Disconnect</string>
     <string name="confirm_disconnect">Disconnect from this SSH session, or keep it running in the background? You can return to it from the notification or the host list.</string>
     <string name="terminal_keep_in_background">Keep running</string>
+    <string name="terminal_paste">Paste</string>
+    <string name="terminal_copy_all">Copy all output</string>
+    <string name="terminal_output_copied">Terminal output copied to clipboard</string>
+    <string name="terminal_clipboard_empty">Clipboard is empty</string>
+    <string name="terminal_paste_not_connected">Not connected</string>
+    <plurals name="terminal_paste_confirm">
+        <item quantity="one">The text ends with a line break, so it will run immediately. Paste it?</item>
+        <item quantity="other">Paste %d lines? Each line will run as a command.</item>
+    </plurals>
     <string name="terminal_reattached">Reattached to running session</string>
 
     <!-- Background sessions (foreground service) -->

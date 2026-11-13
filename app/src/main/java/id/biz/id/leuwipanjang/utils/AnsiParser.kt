@@ -39,6 +39,12 @@ class AnsiParser(private var theme: TerminalTheme) {
     private var isApplicationCursorKeys = false
     val isApplicationCursorKeysActive: Boolean
         get() = isApplicationCursorKeys
+
+    // Bracketed Paste Mode - set by \e[?2004h (bash, zsh, vim...). When active, pasted text
+    // is wrapped in \e[200~ ... \e[201~ so the program inserts it instead of running it.
+    private var isBracketedPaste = false
+    val isBracketedPasteActive: Boolean
+        get() = isBracketedPaste
     private var mainScreenBackup: SpannableStringBuilder? = null
     private val altRows = ArrayList<SpannableStringBuilder>()
     private var altCursorRow = 0 // 0-based
@@ -412,20 +418,17 @@ class AnsiParser(private var theme: TerminalTheme) {
                     rowBuilder.insert(start, " ".repeat(count))
                 }
             }
-            "h" -> {
-                if (params == "?1049" || params == "?47" || params == "?1047") {
-                    enterAlternateScreen(target)
-                } else if (params == "?1") {
-                    // DECCKM: Application Cursor Key Mode
-                    isApplicationCursorKeys = true
-                }
-            }
-            "l" -> {
-                if (params == "?1049" || params == "?47" || params == "?1047") {
-                    exitAlternateScreen(target)
-                } else if (params == "?1") {
-                    // DECCKM: Normal Cursor Key Mode
-                    isApplicationCursorKeys = false
+            "h", "l" -> {
+                // DEC private modes; one sequence may set several, e.g. \e[?1;2004h
+                if (!params.startsWith("?")) return
+                val enable = command == "h"
+                for (mode in params.substring(1).split(';')) {
+                    when (mode) {
+                        "1049", "47", "1047" ->
+                            if (enable) enterAlternateScreen(target) else exitAlternateScreen(target)
+                        "1" -> isApplicationCursorKeys = enable // DECCKM: cursor key mode
+                        "2004" -> isBracketedPaste = enable
+                    }
                 }
             }
             "n" -> {

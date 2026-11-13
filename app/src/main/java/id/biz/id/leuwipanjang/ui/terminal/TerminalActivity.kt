@@ -8,7 +8,12 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.util.TypedValue
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.view.ContextMenu
 import android.view.KeyEvent
+import android.view.Menu
+import android.view.MenuItem
 import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.inputmethod.InputMethodManager
@@ -148,6 +153,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.btnBack.setOnClickListener { handleExit() }
         binding.btnDisconnect.setOnClickListener { handleExit() }
         binding.btnRunSnippet.setOnClickListener { showSnippetRunnerDialog() }
+        binding.btnPaste.setOnClickListener { pasteFromClipboard() }
         binding.btnToggleKeyboard.setOnClickListener { toggleKeyboard() }
         binding.btnFontSize.setOnClickListener { showFontSizeDialog() }
     }
@@ -318,16 +324,8 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
             showKeyboard()
         }
 
-        binding.tvTerminalOutput.setOnLongClickListener {
-            val text = binding.tvTerminalOutput.text.toString()
-            if (text.isNotBlank()) {
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("Terminal Output", text)
-                clipboard?.setPrimaryClip(clip)
-                Toast.makeText(this, "Terminal output copied to clipboard", Toast.LENGTH_SHORT).show()
-            }
-            true
-        }
+        // Long-press (touch) and right-click (mouse, e.g. Samsung DeX) open Paste / Copy all
+        registerForContextMenu(binding.tvTerminalOutput)
 
         binding.scrollTerminal.setOnClickListener {
             showKeyboard()
@@ -355,6 +353,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.etTerminalInput.onBackspace = {
             sendUserInput("\u007F") // DEL / Backspace
         }
+        binding.etTerminalInput.onPaste = { pasteFromClipboard() }
         binding.etTerminalInput.onEnter = {
             sendUserInput("\r")
         }
@@ -539,6 +538,72 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         if (!binding.etTerminalInput.hasFocus()) {
             binding.etTerminalInput.requestFocus()
         }
+    }
+
+    override fun onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo?) {
+        super.onCreateContextMenu(menu, v, menuInfo)
+        menu.add(Menu.NONE, R.id.menu_terminal_paste, 0, R.string.terminal_paste)
+        menu.add(Menu.NONE, R.id.menu_terminal_copy_all, 1, R.string.terminal_copy_all)
+    }
+
+    override fun onContextItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        R.id.menu_terminal_paste -> {
+            pasteFromClipboard()
+            true
+        }
+        R.id.menu_terminal_copy_all -> {
+            copyAllOutput()
+            true
+        }
+        else -> super.onContextItemSelected(item)
+    }
+
+    private fun copyAllOutput() {
+        val text = binding.tvTerminalOutput.text.toString()
+        if (text.isBlank()) return
+        val clipboard = getSystemService(ClipboardManager::class.java)
+        clipboard?.setPrimaryClip(ClipData.newPlainText("Terminal Output", text))
+        Toast.makeText(this, R.string.terminal_output_copied, Toast.LENGTH_SHORT).show()
+    }
+
+    /**
+     * Sends the clipboard text to the session as typed input. Newlines become CR (what the
+     * Enter key sends). If the remote program enabled bracketed paste the text is wrapped so
+     * it is inserted rather than executed; otherwise multi-line text asks for confirmation,
+     * because each line would run as a command.
+     */
+    private fun pasteFromClipboard() {
+        val session = sshManager
+        if (session == null || !session.isConnected) {
+            Toast.makeText(this, R.string.terminal_paste_not_connected, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val clip = getSystemService(ClipboardManager::class.java)?.primaryClip
+        val raw = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()
+        if (raw.isNullOrEmpty()) {
+            Toast.makeText(this, R.string.terminal_clipboard_empty, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val text = raw.replace("\r\n", "\r").replace('\n', '\r')
+
+        if (ansiParser.isBracketedPasteActive) {
+            // Drop any end marker inside the text so it cannot break out of the paste.
+            val safe = text.replace("\u001B[201~", "")
+            session.send("\u001B[200~$safe\u001B[201~")
+            return
+        }
+
+        val lineCount = text.trimEnd('\r').count { it == '\r' } + 1
+        if (!text.contains('\r')) {
+            session.send(text)
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.terminal_paste)
+            .setMessage(resources.getQuantityString(R.plurals.terminal_paste_confirm, lineCount, lineCount))
+            .setPositiveButton(R.string.terminal_paste) { _, _ -> session.send(text) }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun showSnippetRunnerDialog() {

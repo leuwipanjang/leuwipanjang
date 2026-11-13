@@ -25,6 +25,10 @@ class TerminalInputView @JvmOverloads constructor(
     // D-pad center / OK on a TV remote (opens the on-screen keyboard)
     var onCenterPressed: (() -> Unit)? = null
 
+    // Paste request: Ctrl+Shift+V, Shift+Insert, the Paste key or an IME paste action.
+    // Plain Ctrl+V stays ^V, which nano, vim and readline use.
+    var onPaste: (() -> Unit)? = null
+
     companion object {
         /** Maps a character to its Ctrl+<char> control code, or null if it has none. */
         fun controlCharFor(c: Char): Char? = when (c) {
@@ -226,6 +230,15 @@ class TerminalInputView @JvmOverloads constructor(
             return super.sendKeyEvent(event)
         }
 
+        override fun performContextMenuAction(id: Int): Boolean {
+            if (id == android.R.id.paste || id == android.R.id.pasteAsPlainText) {
+                onPaste?.invoke()
+                composingText = ""
+                return true
+            }
+            return super.performContextMenuAction(id)
+        }
+
         override fun performEditorAction(editorAction: Int): Boolean {
             onEnter?.invoke()
             composingText = ""
@@ -240,6 +253,15 @@ class TerminalInputView @JvmOverloads constructor(
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
             onCenterPressed?.invoke()
+            return true
+        }
+
+        val isPaste = keyCode == KeyEvent.KEYCODE_PASTE ||
+            (keyCode == KeyEvent.KEYCODE_V && event.isCtrlPressed && event.isShiftPressed) ||
+            (keyCode == KeyEvent.KEYCODE_INSERT && event.isShiftPressed)
+        if (isPaste) {
+            onPaste?.invoke()
+            resetComposing()
             return true
         }
 

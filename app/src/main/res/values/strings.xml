@@ -63,6 +63,12 @@
     <string name="terminal_keep_in_background">Keep running</string>
     <string name="terminal_paste">Paste</string>
     <string name="terminal_copy_all">Copy all output</string>
+    <string name="terminal_select_text">Select text</string>
+    <string name="terminal_copy">Copy</string>
+    <string name="terminal_selection_done">Done</string>
+    <string name="terminal_selection_hint">Long-press or drag over the text to select it</string>
+    <string name="terminal_selection_copied">Copied to clipboard</string>
+    <string name="terminal_nothing_selected">Nothing selected</string>
     <string name="terminal_output_copied">Terminal output copied to clipboard</string>
     <string name="terminal_clipboard_empty">Clipboard is empty</string>
     <string name="terminal_paste_not_connected">Not connected</string>

@@ -154,21 +154,75 @@
         android:paddingTop="8dp"
         android:paddingBottom="4dp">
 
-        <TextView
-            android:id="@+id/tvTerminalOutput"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:lineSpacingExtra="2dp"
-            android:focusable="false"
-            android:focusableInTouchMode="false"
-            android:paddingBottom="28dp"
-            android:textColor="@color/text_primary"
-            android:textSize="13sp" />
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/tvTerminalOutput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:lineSpacingExtra="2dp"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
+                android:paddingBottom="28dp"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp" />
+
+            <!-- Frozen, selectable copy of the output, shown only in text selection mode -->
+            <TextView
+                android:id="@+id/tvTerminalSelection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:lineSpacingExtra="2dp"
+                android:paddingBottom="28dp"
+                android:textColor="@color/text_primary"
+                android:textIsSelectable="true"
+                android:textSize="13sp"
+                android:visibility="invisible" />
+        </FrameLayout>
     </ScrollView>
+
+    <!-- Text selection mode bar (shown only while selecting) -->
+    <LinearLayout
+        android:id="@+id/layoutSelectionBar"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:background="@color/surface_dark"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/terminal_selection_hint"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btnSelectionCopy"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/terminal_copy" />
+
+        <Button
+            android:id="@+id/btnSelectionDone"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/terminal_selection_done" />
+    </LinearLayout>
 
     <!-- Termius Accessory Keys Bar -->
     <HorizontalScrollView
+        android:id="@+id/scrollAccessoryKeys"
         android:layout_width="match_parent"
         android:layout_height="44dp"
         android:background="@color/surface_dark"

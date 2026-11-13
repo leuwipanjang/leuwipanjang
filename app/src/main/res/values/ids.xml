@@ -2,4 +2,8 @@
 <resources>
     <item name="menu_terminal_paste" type="id" />
     <item name="menu_terminal_copy_all" type="id" />
+    <item name="menu_terminal_select_text" type="id" />
+    <item name="menu_terminal_copy_selection" type="id" />
+    <item name="menu_terminal_select_all" type="id" />
+    <item name="menu_terminal_selection_done" type="id" />
 </resources>

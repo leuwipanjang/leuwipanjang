@@ -14,6 +14,7 @@ import android.view.ContextMenu
 import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
+import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.inputmethod.InputMethodManager
@@ -47,6 +48,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
     companion object {
         const val EXTRA_HOST_ID = "extra_host_id"
+        private const val MAX_PENDING_OUTPUT = 512 * 1024
     }
 
     private lateinit var binding: ActivityTerminalBinding
@@ -85,7 +87,9 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         onBackPressedDispatcher.addCallback(this) {
             // On TV the D-pad drives the terminal, so the first Back moves focus
             // out of the terminal to the key bar; Back again exits.
-            if (isTv && binding.etTerminalInput.hasFocus()) {
+            if (isSelecting) {
+                exitSelectionMode()
+            } else if (isTv && binding.etTerminalInput.hasFocus()) {
                 binding.keyEsc.requestFocus()
                 Toast.makeText(this@TerminalActivity, R.string.tv_terminal_keybar_hint, Toast.LENGTH_SHORT).show()
             } else {
@@ -326,7 +330,8 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
         // Long-press (touch) and right-click (mouse, e.g. Samsung DeX) open Paste / Copy all
         registerForContextMenu(binding.tvTerminalOutput)
-        setupMouseRightClick()
+        setupPointerHandling()
+        setupSelectionMode()
 
         binding.scrollTerminal.setOnClickListener {
             showKeyboard()
@@ -542,50 +547,231 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     /**
-     * Android opens a view's context menu as soon as the right mouse button goes down, while
-     * the press is still in progress. With a mouse (Samsung DeX, Chromebooks) the menu then
-     * ignored clicks on its items. Open it after the right button is released instead.
+     * Mouse and touch handling on the terminal output:
+     * - Right-click: Android opens a view's context menu as soon as the right button goes
+     *   down, and with a mouse (Samsung DeX, Chromebooks) that menu then ignored clicks on its
+     *   items, so it is opened once the button is released instead.
+     * - Left-button drag: enters text selection mode and hands the drag to the selectable
+     *   overlay, so text can be selected the way it is on a desktop terminal.
      */
     @android.annotation.SuppressLint("ClickableViewAccessibility")
-    private fun setupMouseRightClick() {
+    private fun setupPointerHandling() {
+        val output = binding.tvTerminalOutput
+        val overlay = binding.tvTerminalSelection
+        val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
         var rightPressed = false
-        binding.tvTerminalOutput.setOnTouchListener { view, event ->
-            val isSecondary = event.isFromSource(android.view.InputDevice.SOURCE_MOUSE) &&
-                event.isButtonPressed(android.view.MotionEvent.BUTTON_SECONDARY)
+        var leftPressed = false
+        var forwarding = false
+        var startX = 0f
+        var startY = 0f
+
+        output.setOnTouchListener { view, event ->
+            val isMouse = event.isFromSource(android.view.InputDevice.SOURCE_MOUSE)
             when (event.actionMasked) {
-                android.view.MotionEvent.ACTION_DOWN -> {
-                    rightPressed = isSecondary
+                MotionEvent.ACTION_DOWN -> {
+                    rightPressed = isMouse && event.isButtonPressed(MotionEvent.BUTTON_SECONDARY)
+                    leftPressed = isMouse && event.isButtonPressed(MotionEvent.BUTTON_PRIMARY)
+                    forwarding = false
+                    startX = event.x
+                    startY = event.y
+                    // A mouse drag selects text rather than scrolling (the wheel scrolls).
+                    if (leftPressed) view.parent?.requestDisallowInterceptTouchEvent(true)
                     rightPressed
                 }
-                android.view.MotionEvent.ACTION_UP -> {
-                    if (rightPressed) {
-                        rightPressed = false
+                MotionEvent.ACTION_MOVE -> when {
+                    rightPressed -> true
+                    forwarding -> {
+                        overlay.dispatchTouchEvent(event)
+                        true
+                    }
+                    leftPressed && Math.hypot(
+                        (event.x - startX).toDouble(), (event.y - startY).toDouble()
+                    ) > touchSlop -> {
+                        view.cancelLongPress()
+                        view.isPressed = false
+                        enterSelectionMode()
+                        forwarding = true
+                        val down = MotionEvent.obtain(event).apply {
+                            action = MotionEvent.ACTION_DOWN
+                            setLocation(startX, startY)
+                        }
+                        overlay.dispatchTouchEvent(down)
+                        down.recycle()
+                        overlay.dispatchTouchEvent(event)
+                        true
+                    }
+                    else -> false
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    val consumed = rightPressed || forwarding
+                    if (forwarding) overlay.dispatchTouchEvent(event)
+                    if (rightPressed && event.actionMasked == MotionEvent.ACTION_UP) {
                         val x = event.x
                         val y = event.y
                         view.post { view.showContextMenu(x, y) }
+                    }
+                    rightPressed = false
+                    leftPressed = false
+                    forwarding = false
+                    consumed
+                }
+                else -> rightPressed || forwarding
+            }
+        }
+
+        // Same deferred right-click on the selection overlay (Copy / Select all / Done).
+        var overlayRightPressed = false
+        overlay.setOnTouchListener { view, event ->
+            val isRight = event.isFromSource(android.view.InputDevice.SOURCE_MOUSE) &&
+                event.isButtonPressed(MotionEvent.BUTTON_SECONDARY)
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    overlayRightPressed = isRight
+                    overlayRightPressed
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (overlayRightPressed) {
+                        overlayRightPressed = false
+                        val x = event.x
+                        val y = event.y
+                        view.post {
+                            overlayMenuRequested = true
+                            view.showContextMenu(x, y)
+                            overlayMenuRequested = false
+                        }
                         true
                     } else {
                         false
                     }
                 }
-                android.view.MotionEvent.ACTION_CANCEL -> {
-                    val consumed = rightPressed
-                    rightPressed = false
+                MotionEvent.ACTION_CANCEL -> {
+                    val consumed = overlayRightPressed
+                    overlayRightPressed = false
                     consumed
                 }
-                else -> rightPressed
+                else -> overlayRightPressed
+            }
+        }
+        registerForContextMenu(overlay)
+    }
+
+    // ---- Text selection mode ----
+    // The live output keeps changing, so selecting happens on a frozen, selectable copy laid
+    // over it. Output arriving meanwhile is held back and shown when selection mode ends.
+
+    private var isSelecting = false
+    private val pendingOutput = StringBuilder()
+    private var overlayMenuRequested = false
+
+    private fun setupSelectionMode() {
+        val overlay = binding.tvTerminalSelection
+        binding.btnSelectionCopy.setOnClickListener { copySelection() }
+        binding.btnSelectionDone.setOnClickListener { exitSelectionMode() }
+
+        overlay.customSelectionActionModeCallback = object : android.view.ActionMode.Callback {
+            override fun onCreateActionMode(mode: android.view.ActionMode, menu: Menu) = true
+            override fun onPrepareActionMode(mode: android.view.ActionMode, menu: Menu) = false
+            override fun onActionItemClicked(mode: android.view.ActionMode, item: MenuItem): Boolean {
+                if (item.itemId == android.R.id.copy) {
+                    copySelection()
+                    mode.finish()
+                    return true
+                }
+                return false
+            }
+            override fun onDestroyActionMode(mode: android.view.ActionMode) {
+                // Tapping away clears the selection; that also ends selection mode.
+                overlay.post { if (isSelecting && !overlay.hasSelection()) exitSelectionMode() }
+            }
+        }
+
+        overlay.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when {
+                keyCode == KeyEvent.KEYCODE_ESCAPE -> {
+                    exitSelectionMode()
+                    true
+                }
+                keyCode == KeyEvent.KEYCODE_C && event.isCtrlPressed -> {
+                    copySelection()
+                    true
+                }
+                else -> false
             }
         }
     }
 
+    private fun enterSelectionMode() {
+        if (isSelecting) return
+        isSelecting = true
+        val overlay = binding.tvTerminalSelection
+        overlay.setTextSize(TypedValue.COMPLEX_UNIT_PT, currentFontSize.toFloat())
+        overlay.typeface = Typeface.MONOSPACE
+        overlay.setTextColor(activeTheme.foregroundColor)
+        overlay.setBackgroundColor(activeTheme.backgroundColor)
+        overlay.text = android.text.SpannableString(binding.tvTerminalOutput.text)
+        overlay.visibility = View.VISIBLE
+        binding.tvTerminalOutput.visibility = View.INVISIBLE
+        // The bar takes the key bar's place (same height), so the terminal is not resized.
+        binding.scrollAccessoryKeys.visibility = View.GONE
+        binding.layoutSelectionBar.visibility = View.VISIBLE
+        overlay.requestFocus()
+    }
+
+    private fun exitSelectionMode() {
+        if (!isSelecting) return
+        isSelecting = false
+        val overlay = binding.tvTerminalSelection
+        overlay.clearFocus()
+        overlay.visibility = View.INVISIBLE
+        overlay.text = ""
+        binding.tvTerminalOutput.visibility = View.VISIBLE
+        binding.layoutSelectionBar.visibility = View.GONE
+        binding.scrollAccessoryKeys.visibility = View.VISIBLE
+        binding.etTerminalInput.requestFocus()
+        if (pendingOutput.isNotEmpty()) {
+            val held = pendingOutput.toString()
+            pendingOutput.setLength(0)
+            onDataReceived(held)
+        }
+        scrollToBottom()
+    }
+
+    private fun copySelection() {
+        val overlay = binding.tvTerminalSelection
+        val start = minOf(overlay.selectionStart, overlay.selectionEnd)
+        val end = maxOf(overlay.selectionStart, overlay.selectionEnd)
+        if (start < 0 || start == end) {
+            Toast.makeText(this, R.string.terminal_nothing_selected, Toast.LENGTH_SHORT).show()
+            return
+        }
+        // Full-screen apps pad lines with spaces; drop them from each copied line.
+        val text = overlay.text.substring(start, end).lines().joinToString("\n") { it.trimEnd() }
+        getSystemService(ClipboardManager::class.java)
+            ?.setPrimaryClip(ClipData.newPlainText("Terminal Selection", text))
+        Toast.makeText(this, R.string.terminal_selection_copied, Toast.LENGTH_SHORT).show()
+        exitSelectionMode()
+    }
+
     override fun onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo?) {
         super.onCreateContextMenu(menu, v, menuInfo)
-        // On a mouse right-click the output TextView first adds its own editor items (Undo,
-        // Cut, Copy, Paste...). They act on the read-only output, so they do nothing and the
-        // menu stays open. Show only the terminal's own actions.
+        // On a mouse right-click a TextView first adds its own editor items (Undo, Cut, Copy,
+        // Paste...). On the read-only output they do nothing and the menu stays open, so
+        // only the terminal's own actions are shown.
         menu.clear()
+        if (v === binding.tvTerminalSelection) {
+            // Long-press on the selectable text must fall through to Android's own word
+            // selection, so this menu only appears for a right-click.
+            if (!overlayMenuRequested) return
+            menu.add(Menu.NONE, R.id.menu_terminal_copy_selection, 0, R.string.terminal_copy)
+                .isEnabled = binding.tvTerminalSelection.hasSelection()
+            menu.add(Menu.NONE, R.id.menu_terminal_select_all, 1, android.R.string.selectAll)
+            menu.add(Menu.NONE, R.id.menu_terminal_selection_done, 2, R.string.terminal_selection_done)
+            return
+        }
         menu.add(Menu.NONE, R.id.menu_terminal_paste, 0, R.string.terminal_paste)
-        menu.add(Menu.NONE, R.id.menu_terminal_copy_all, 1, R.string.terminal_copy_all)
+        menu.add(Menu.NONE, R.id.menu_terminal_select_text, 1, R.string.terminal_select_text)
+        menu.add(Menu.NONE, R.id.menu_terminal_copy_all, 2, R.string.terminal_copy_all)
     }
 
     override fun onContextItemSelected(item: MenuItem): Boolean = when (item.itemId) {
@@ -595,6 +781,25 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         }
         R.id.menu_terminal_copy_all -> {
             copyAllOutput()
+            true
+        }
+        R.id.menu_terminal_select_text -> {
+            // Android's own long-press / drag on the frozen copy then selects, with handles
+            // and a Copy toolbar.
+            enterSelectionMode()
+            true
+        }
+        R.id.menu_terminal_copy_selection -> {
+            copySelection()
+            true
+        }
+        R.id.menu_terminal_select_all -> {
+            val text = binding.tvTerminalSelection.text
+            if (text is android.text.Spannable) android.text.Selection.setSelection(text, 0, text.length)
+            true
+        }
+        R.id.menu_terminal_selection_done -> {
+            exitSelectionMode()
             true
         }
         else -> super.onContextItemSelected(item)
@@ -682,6 +887,12 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     override fun onDataReceived(text: String) {
+        if (isSelecting) {
+            pendingOutput.append(text)
+            // Don't hold back an endless stream (e.g. tail -f) while the user selects.
+            if (pendingOutput.length > MAX_PENDING_OUTPUT) exitSelectionMode()
+            return
+        }
         val editable = binding.tvTerminalOutput.editableText
         if (editable != null) {
             ansiParser.appendTo(editable, text)
@@ -714,6 +925,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     private fun scrollToBottom() {
+        if (isSelecting) return
         binding.scrollTerminal.post {
             binding.scrollTerminal.fullScroll(View.FOCUS_DOWN)
         }

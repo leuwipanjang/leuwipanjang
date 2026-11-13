@@ -146,7 +146,8 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.scrollTerminal.setBackgroundColor(activeTheme.backgroundColor)
         binding.tvTerminalOutput.setBackgroundColor(activeTheme.backgroundColor)
         binding.tvTerminalOutput.setTextColor(activeTheme.foregroundColor)
-        binding.tvTerminalOutput.typeface = Typeface.MONOSPACE
+        applyTerminalFont(binding.tvTerminalOutput)
+        ansiParser.measurePaint = binding.tvTerminalOutput.paint
         binding.tvTerminalOutput.setTextSize(TypedValue.COMPLEX_UNIT_PT, currentFontSize.toFloat())
 
         binding.btnBack.setOnClickListener { handleExit() }
@@ -412,6 +413,15 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         }
     }
 
+    private fun applyTerminalFont(view: android.widget.TextView) {
+        view.typeface = id.biz.id.leuwipanjang.utils.TerminalFonts.typeface(this)
+        // Keep every row the same height even when a row uses a taller fallback glyph,
+        // so the screen rows line up with the rows sent to the server.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            view.isFallbackLineSpacing = false
+        }
+    }
+
     private fun applyFontSize(size: Int) {
         currentFontSize = size.coerceIn(1, 8)
         binding.tvTerminalOutput.setTextSize(TypedValue.COMPLEX_UNIT_PT, currentFontSize.toFloat())
@@ -427,19 +437,14 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         val width = viewport.width - viewport.paddingLeft - viewport.paddingRight - tv.paddingLeft - tv.paddingRight
         val height = viewport.height - viewport.paddingTop - viewport.paddingBottom - tv.paddingTop - tv.paddingBottom
 
-        val paint = tv.paint
-        // Measure widest character among 'M', 'W', and horizontal line '─' (U+2500)
-        // to prevent border characters from wrapping into a second line
-        val charWidth = maxOf(
-            paint.measureText("M"),
-            paint.measureText("W"),
-            paint.measureText("─")
-        )
+        // The terminal font is monospaced for everything it draws (glyphs from fallback fonts
+        // are scaled to one cell by AnsiParser), so one cell is exactly the width of "M".
+        val charWidth = tv.paint.measureText("M")
         val charHeight = tv.lineHeight.toFloat()
 
         if (width > 0 && height > 0 && charWidth > 0 && charHeight > 0) {
-            // Apply a small safety margin (4px) to guard against subpixel antialiasing/rounding
-            val usableWidth = (width - 4).coerceAtLeast(0)
+            // 1px margin against rounding; a full row must never wrap in the TextView
+            val usableWidth = (width - 1).coerceAtLeast(0)
             val cols = (usableWidth / charWidth).toInt().coerceIn(20, 240)
             val rows = (height / charHeight).toInt().coerceIn(10, 100)
             if (cols != lastPtyCols || rows != lastPtyRows) {
@@ -702,7 +707,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         isSelecting = true
         val overlay = binding.tvTerminalSelection
         overlay.setTextSize(TypedValue.COMPLEX_UNIT_PT, currentFontSize.toFloat())
-        overlay.typeface = Typeface.MONOSPACE
+        applyTerminalFont(overlay)
         overlay.setTextColor(activeTheme.foregroundColor)
         overlay.setBackgroundColor(activeTheme.backgroundColor)
         overlay.text = android.text.SpannableString(binding.tvTerminalOutput.text)

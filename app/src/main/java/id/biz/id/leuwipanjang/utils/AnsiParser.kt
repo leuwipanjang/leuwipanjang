@@ -53,6 +53,15 @@ class AnsiParser(private var theme: TerminalTheme) {
     class TerminalCursorSpan(color: Int) : BackgroundColorSpan(color)
     class TerminalCursorFgSpan(color: Int) : ForegroundColorSpan(color)
 
+    /**
+     * The TextView's paint. When set, characters drawn from a fallback font with a different
+     * width are scaled to exactly one cell, so columns stay aligned.
+     */
+    var measurePaint: android.text.TextPaint? = null
+    private val glyphWidths = HashMap<Char, Float>()
+    private var glyphWidthsKey = 0f
+    private var cellWidth = 0f
+
     /** Where the live screen starts in the Editable; everything before it is scrollback. */
     private var screenStart = 0
     private var renderedAlternate = false
@@ -185,10 +194,30 @@ class AnsiParser(private var theme: TerminalTheme) {
             applyStyle(out, runStart, out.length, style)
             col = end
         }
+        fitWideGlyphs(out, start, row, length)
         if (cursorCol >= 0) {
             val idx = start + cursorCol
             out.setSpan(TerminalCursorSpan(theme.cursorColor), idx, idx + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             out.setSpan(TerminalCursorFgSpan(theme.backgroundColor), idx, idx + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+    }
+
+    private fun fitWideGlyphs(out: SpannableStringBuilder, start: Int, row: TerminalEmulator.Row, length: Int) {
+        val paint = measurePaint ?: return
+        val key = paint.textSize // the typeface is fixed; widths change with the font size
+        if (key != glyphWidthsKey) {
+            glyphWidths.clear()
+            glyphWidthsKey = key
+            cellWidth = paint.measureText("M")
+        }
+        if (cellWidth <= 0f) return
+        for (i in 0 until minOf(length, row.size)) {
+            val c = row.chars[i]
+            if (c.code < 0x80 || Character.isSurrogate(c)) continue
+            val w = glyphWidths.getOrPut(c) { paint.measureText(c.toString()) }
+            if (w > 0f && kotlin.math.abs(w - cellWidth) > 0.5f) {
+                out.setSpan(android.text.style.ScaleXSpan(cellWidth / w), start + i, start + i + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
         }
     }
 

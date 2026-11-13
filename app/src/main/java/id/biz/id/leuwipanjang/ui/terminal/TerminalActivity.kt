@@ -326,6 +326,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
         // Long-press (touch) and right-click (mouse, e.g. Samsung DeX) open Paste / Copy all
         registerForContextMenu(binding.tvTerminalOutput)
+        setupMouseRightClick()
 
         binding.scrollTerminal.setOnClickListener {
             showKeyboard()
@@ -540,8 +541,49 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         }
     }
 
+    /**
+     * Android opens a view's context menu as soon as the right mouse button goes down, while
+     * the press is still in progress. With a mouse (Samsung DeX, Chromebooks) the menu then
+     * ignored clicks on its items. Open it after the right button is released instead.
+     */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private fun setupMouseRightClick() {
+        var rightPressed = false
+        binding.tvTerminalOutput.setOnTouchListener { view, event ->
+            val isSecondary = event.isFromSource(android.view.InputDevice.SOURCE_MOUSE) &&
+                event.isButtonPressed(android.view.MotionEvent.BUTTON_SECONDARY)
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    rightPressed = isSecondary
+                    rightPressed
+                }
+                android.view.MotionEvent.ACTION_UP -> {
+                    if (rightPressed) {
+                        rightPressed = false
+                        val x = event.x
+                        val y = event.y
+                        view.post { view.showContextMenu(x, y) }
+                        true
+                    } else {
+                        false
+                    }
+                }
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    val consumed = rightPressed
+                    rightPressed = false
+                    consumed
+                }
+                else -> rightPressed
+            }
+        }
+    }
+
     override fun onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo?) {
         super.onCreateContextMenu(menu, v, menuInfo)
+        // On a mouse right-click the output TextView first adds its own editor items (Undo,
+        // Cut, Copy, Paste...). They act on the read-only output, so they do nothing and the
+        // menu stays open. Show only the terminal's own actions.
+        menu.clear()
         menu.add(Menu.NONE, R.id.menu_terminal_paste, 0, R.string.terminal_paste)
         menu.add(Menu.NONE, R.id.menu_terminal_copy_all, 1, R.string.terminal_copy_all)
     }

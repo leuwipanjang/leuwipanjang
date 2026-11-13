@@ -175,12 +175,27 @@ class SshManager(
     private fun startReadingOutput() {
         readerJob = scope.launch {
             val buffer = ByteArray(4096)
+            // Streaming UTF-8 decoder: a multi-byte character split across two reads (common
+            // with box-drawing characters) is completed by the next read instead of
+            // turning into two replacement characters.
+            val decoder = Charsets.UTF_8.newDecoder()
+                .onMalformedInput(java.nio.charset.CodingErrorAction.REPLACE)
+                .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPLACE)
+            val bytes = java.nio.ByteBuffer.allocate(buffer.size + 8)
+            val chars = java.nio.CharBuffer.allocate(buffer.size + 8)
             val stream = inputStream ?: return@launch
             try {
                 while (isActive && isConnected && channel?.isConnected == true) {
                     val read = stream.read(buffer)
                     if (read > 0) {
-                        val text = String(buffer, 0, read, Charsets.UTF_8)
+                        bytes.put(buffer, 0, read)
+                        bytes.flip()
+                        decoder.decode(bytes, chars, false)
+                        bytes.compact() // keeps an incomplete trailing sequence for the next read
+                        chars.flip()
+                        val text = chars.toString()
+                        chars.clear()
+                        if (text.isEmpty()) continue
                         // Record and pick the receiver atomically with attach(), so a screen
                         // attaching now gets each chunk exactly once (replay or callback).
                         val target = synchronized(lock) {

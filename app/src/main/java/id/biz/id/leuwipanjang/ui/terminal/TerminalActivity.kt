@@ -132,11 +132,6 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
             onTitleChanged = { title ->
                 binding.tvTerminalSubtitle.text = title
             }
-            onClearScreen = {
-                binding.tvTerminalOutput.editableText?.clear() ?: run {
-                    binding.tvTerminalOutput.text = ""
-                }
-            }
             onSendTerminalResponse = { response ->
                 if (!isReplaying) sshManager?.send(response)
             }
@@ -451,6 +446,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
                 lastPtyCols = cols
                 lastPtyRows = rows
                 ansiParser.setTerminalDimensions(cols, rows)
+                binding.tvTerminalOutput.editableText?.let { ansiParser.refresh(it) }
                 sshManager?.updatePtySize(cols, rows)
             }
         }
@@ -875,15 +871,16 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     // SSH Connection Callbacks
     override fun onConnecting() {
         binding.viewStatusDot.setBackgroundColor(Color.parseColor("#F59E0B")) // Warning Yellow
-        binding.tvTerminalOutput.append("\n[Connecting to ${host?.alias} (${host?.hostname}:${host?.port})...]\n")
-        scrollToBottom()
+        printLocal("\n[Connecting to ${host?.alias} (${host?.hostname}:${host?.port})...]\n")
     }
 
     override fun onConnected() {
         binding.viewStatusDot.setBackgroundColor(Color.parseColor("#10B981")) // Green Success
-        binding.tvTerminalOutput.append("[Connected via ${if (host?.authType == AuthType.KEY) "Public Key" else "Password"}]\n\n")
+        printLocal("[Connected via ${if (host?.authType == AuthType.KEY) "Public Key" else "Password"}]\n\n")
+        // The size computed before the session existed was never sent: send it now.
+        lastPtyCols = 0
+        lastPtyRows = 0
         binding.tvTerminalOutput.post { updateTerminalSize() }
-        scrollToBottom()
     }
 
     override fun onDataReceived(text: String) {
@@ -911,17 +908,23 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
     override fun onError(errorMessage: String) {
         binding.viewStatusDot.setBackgroundColor(Color.parseColor("#EF4444")) // Red Error
-        binding.tvTerminalOutput.append("\n\n[SSH Connection Error: $errorMessage]\n")
+        printLocal("\n\n[SSH Connection Error: $errorMessage]\n")
         if (host?.authType == AuthType.KEY) {
-            binding.tvTerminalOutput.append("[Tip: Ensure this host's public key is appended to ~/.ssh/authorized_keys on the server]\n")
+            printLocal("[Tip: Ensure this host's public key is appended to ~/.ssh/authorized_keys on the server]\n")
         }
-        scrollToBottom()
     }
 
     override fun onDisconnected() {
         binding.viewStatusDot.setBackgroundColor(Color.parseColor("#64748B")) // Grey
-        binding.tvTerminalOutput.append("\n[Session disconnected]\n")
-        scrollToBottom()
+        printLocal("\n[Session disconnected]\n")
+    }
+
+    /**
+     * Shows an app status line in the terminal. It goes through the emulator like server
+     * output (at the cursor, starting from column 0) so the screen state stays consistent.
+     */
+    private fun printLocal(text: String) {
+        onDataReceived("\r" + text.replace("\n", "\r\n"))
     }
 
     private fun scrollToBottom() {

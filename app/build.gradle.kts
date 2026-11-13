@@ -136,4 +136,7 @@ dependencies {
 
     // Security & Encrypted Preferences
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // JVM unit tests (terminal emulator)
+    testImplementation("junit:junit:4.13.2")
 }

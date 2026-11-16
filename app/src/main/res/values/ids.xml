@@ -6,4 +6,5 @@
     <item name="menu_terminal_copy_selection" type="id" />
     <item name="menu_terminal_select_all" type="id" />
     <item name="menu_terminal_selection_done" type="id" />
+    <item name="menu_terminal_redraw" type="id" />
 </resources>

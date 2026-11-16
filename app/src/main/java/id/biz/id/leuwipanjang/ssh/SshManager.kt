@@ -140,7 +140,9 @@ class SshManager(
                 channel = ch
                 ch.setPty(true)
                 ch.setPtyType("xterm-256color")
-                ch.setPtySize(80, 24, 640, 480)
+                // Start at the screen's size if it is already known, so the shell and any
+                // program it starts never draw for a different width first.
+                ch.setPtySize(ptyCols, ptyRows, ptyCols * 8, ptyRows * 16)
 
                 // Configure standard terminal modes (VERASE = 0x7F / 127 DEL)
                 val terminalModes = byteArrayOf(
@@ -256,11 +258,45 @@ class SshManager(
         sendChannel.trySend(bytes)
     }
 
+    /** Size the server-side PTY has (or will get when the shell opens). */
+    @Volatile
+    var ptyCols = 80
+        private set
+
+    @Volatile
+    var ptyRows = 24
+        private set
+
     fun updatePtySize(cols: Int, rows: Int) {
+        ptyCols = cols
+        ptyRows = rows
         scope.launch {
             try {
                 if (isConnected && channel?.isConnected == true) {
                     channel?.setPtySize(cols, rows, cols * 8, rows * 16)
+                }
+            } catch (e: Exception) {
+                // Ignore pty resize error
+            }
+        }
+    }
+
+    /**
+     * Makes full-screen programs (Claude Code, agy, vim, htop…) repaint everything by briefly
+     * changing the PTY width. Used when a screen shows a session whose display it rebuilt
+     * from the transcript, which can be incomplete.
+     */
+    fun forceRedraw() {
+        val cols = ptyCols
+        val rows = ptyRows
+        scope.launch {
+            try {
+                val ch = channel ?: return@launch
+                if (!isConnected || !ch.isConnected || cols <= 1) return@launch
+                ch.setPtySize(cols - 1, rows, (cols - 1) * 8, rows * 16)
+                kotlinx.coroutines.delay(REDRAW_NUDGE_MS)
+                if (isConnected && ch.isConnected) {
+                    ch.setPtySize(ptyCols, ptyRows, ptyCols * 8, ptyRows * 16)
                 }
             } catch (e: Exception) {
                 // Ignore pty resize error
@@ -297,5 +333,8 @@ class SshManager(
 
         /** How long the server may stay silent before the session counts as dropped. */
         private const val DEAD_PEER_SECONDS = 60
+
+        /** Gap between the two size changes of [forceRedraw], so each gets its own SIGWINCH. */
+        private const val REDRAW_NUDGE_MS = 150L
     }
 }

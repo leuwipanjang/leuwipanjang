@@ -166,6 +166,11 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         if (existing != null) {
             sshManager = existing
             sessionEstablished = existing.isConnected
+            // Rebuild the screen at the size the server is drawing for, then (once this
+            // screen's own size is known) have the program repaint: the transcript may start
+            // mid-way and miss what the screen looked like before it.
+            ansiParser.setTerminalDimensions(existing.ptyCols, existing.ptyRows)
+            redrawWhenSized = true
             val history = existing.attach(this)
             if (history.isNotEmpty()) {
                 isReplaying = true
@@ -431,6 +436,8 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.tvTerminalOutput.post { updateTerminalSize() }
     }
 
+    /** Set on re-attach: ask the program to repaint once the size has been sent. */
+    private var redrawWhenSized = false
     private var lastPtyCols = 0
     private var lastPtyRows = 0
 
@@ -455,7 +462,15 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
                 lastPtyRows = rows
                 ansiParser.setTerminalDimensions(cols, rows)
                 binding.tvTerminalOutput.editableText?.let { ansiParser.refresh(it) }
-                sshManager?.updatePtySize(cols, rows)
+                val session = sshManager
+                if (session != null) {
+                    // A size the server already has sends no SIGWINCH, so nothing would be
+                    // repainted: force it.
+                    val sameSize = cols == session.ptyCols && rows == session.ptyRows
+                    session.updatePtySize(cols, rows)
+                    if (redrawWhenSized && sameSize) session.forceRedraw()
+                    redrawWhenSized = false
+                }
             }
         }
     }
@@ -776,6 +791,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         menu.add(Menu.NONE, R.id.menu_terminal_paste, 0, R.string.terminal_paste)
         menu.add(Menu.NONE, R.id.menu_terminal_select_text, 1, R.string.terminal_select_text)
         menu.add(Menu.NONE, R.id.menu_terminal_copy_all, 2, R.string.terminal_copy_all)
+        menu.add(Menu.NONE, R.id.menu_terminal_redraw, 3, R.string.terminal_redraw)
     }
 
     override fun onContextItemSelected(item: MenuItem): Boolean = when (item.itemId) {
@@ -785,6 +801,10 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         }
         R.id.menu_terminal_copy_all -> {
             copyAllOutput()
+            true
+        }
+        R.id.menu_terminal_redraw -> {
+            sshManager?.forceRedraw()
             true
         }
         R.id.menu_terminal_select_text -> {

@@ -334,6 +334,7 @@ class SshManager(
             try {
                 val ch = channel ?: return@launch
                 if (!isConnected || !ch.isConnected || cols <= 1) return@launch
+                onMain { it.onRedrawStarted() }
                 ch.setPtySize(cols - 1, rows, (cols - 1) * 8, rows * 16)
                 kotlinx.coroutines.delay(REDRAW_NUDGE_MS)
                 if (isConnected && ch.isConnected) {

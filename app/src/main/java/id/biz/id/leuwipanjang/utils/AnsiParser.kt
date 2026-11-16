@@ -94,6 +94,11 @@ class AnsiParser(private var theme: TerminalTheme) {
         return builder
     }
 
+    /** Updates the screen state without drawing it; call [refresh] later to show it. */
+    fun feed(rawText: String) {
+        emulator.append(rawText)
+    }
+
     fun appendTo(target: Editable, rawText: String) {
         emulator.append(rawText)
         refresh(target)

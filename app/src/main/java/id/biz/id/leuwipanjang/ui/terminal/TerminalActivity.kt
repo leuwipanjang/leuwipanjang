@@ -7,6 +7,7 @@ import android.os.Build
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.TypedValue
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -49,6 +50,13 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     companion object {
         const val EXTRA_HOST_ID = "extra_host_id"
         private const val MAX_PENDING_OUTPUT = 512 * 1024
+
+        // Forced repaint: show the result once output has been quiet this long, but not
+        // before HOLD_MIN_MS (both size changes must have gone out) nor after HOLD_MAX_MS.
+        private const val HOLD_MIN_MS = 700L
+        private const val HOLD_QUIET_MS = 350L
+        private const val HOLD_MAX_MS = 3000L
+        private const val HOLD_CHECK_MS = 100L
     }
 
     private lateinit var binding: ActivityTerminalBinding
@@ -722,6 +730,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
     private fun enterSelectionMode() {
         if (isSelecting) return
+        endRenderHold() // the frozen copy must show the current screen
         isSelecting = true
         val overlay = binding.tvTerminalSelection
         overlay.setTextSize(TypedValue.COMPLEX_UNIT_PT, currentFontSize.toFloat())
@@ -912,7 +921,54 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         binding.tvTerminalOutput.post { updateTerminalSize() }
     }
 
+    /**
+     * While a forced repaint is under way the program draws the screen twice (once per size
+     * change). Output is still processed but only shown once it has settled, so the user
+     * sees one clean switch instead of two flashes.
+     */
+    private var holdingRender = false
+    private var holdStartedAt = 0L
+    private var lastHeldOutputAt = 0L
+    private val releaseHeldRender = object : Runnable {
+        override fun run() {
+            if (!holdingRender) return
+            val now = SystemClock.uptimeMillis()
+            val settled = now - holdStartedAt >= HOLD_MIN_MS && now - lastHeldOutputAt >= HOLD_QUIET_MS
+            if (settled || now - holdStartedAt >= HOLD_MAX_MS) {
+                endRenderHold()
+            } else {
+                binding.tvTerminalOutput.postDelayed(this, HOLD_CHECK_MS)
+            }
+        }
+    }
+
+    override fun onRedrawStarted() {
+        if (isSelecting) return
+        holdingRender = true
+        holdStartedAt = SystemClock.uptimeMillis()
+        lastHeldOutputAt = holdStartedAt
+        binding.tvTerminalOutput.removeCallbacks(releaseHeldRender)
+        binding.tvTerminalOutput.postDelayed(releaseHeldRender, HOLD_CHECK_MS)
+    }
+
+    private fun endRenderHold() {
+        if (!holdingRender) return
+        holdingRender = false
+        binding.tvTerminalOutput.removeCallbacks(releaseHeldRender)
+        binding.tvTerminalOutput.editableText?.let { ansiParser.refresh(it) }
+        if (ansiParser.isAlternateScreenActive) {
+            binding.scrollTerminal.post { binding.scrollTerminal.scrollTo(0, 0) }
+        } else {
+            scrollToBottom()
+        }
+    }
+
     override fun onDataReceived(text: String) {
+        if (holdingRender && !isSelecting) {
+            ansiParser.feed(text)
+            lastHeldOutputAt = SystemClock.uptimeMillis()
+            return
+        }
         if (isSelecting) {
             pendingOutput.append(text)
             // Don't hold back an endless stream (e.g. tail -f) while the user selects.
@@ -944,6 +1000,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     override fun onDisconnected() {
+        endRenderHold()
         binding.viewStatusDot.setBackgroundColor(Color.parseColor("#64748B")) // Grey
         printLocal("\n[Session disconnected]\n")
         // A session that was working ended (network drop, server closed it, `exit`):

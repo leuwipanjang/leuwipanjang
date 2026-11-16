@@ -31,6 +31,11 @@ class SshManager(
     /** End of the previous output chunk, so a marker split across two reads is still seen. */
     private var markerTail = ""
 
+    /** Until when a re-attach banner is looked for; set when the user presses Enter. */
+    @Volatile
+    private var reattachArmedUntil = 0L
+    private var lastAutoRedraw = 0L
+
     /** Current terminal screen, or null while the session runs in the background. Main thread only. */
     private var listener: SshConnectionListener? = null
     private val closed = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -259,6 +264,9 @@ class SshManager(
     }
 
     fun sendBytes(bytes: ByteArray) {
+        if (bytes.contains('\r'.code.toByte())) {
+            reattachArmedUntil = System.currentTimeMillis() + REATTACH_WATCH_MS
+        }
         sendChannel.trySend(bytes)
     }
 
@@ -269,10 +277,21 @@ class SshManager(
      * the program repaint, which is what opening and closing the keyboard did by hand.
      */
     private fun watchForReattach(text: String) {
+        // Only right after the user ran a command, once: the banner text can also show up
+        // inside a program's own screen (e.g. a chat transcript quoting it), and treating
+        // every repaint of it as a re-attach would repaint forever.
+        val now = System.currentTimeMillis()
+        if (now > reattachArmedUntil) {
+            markerTail = ""
+            return
+        }
         val window = markerTail + text
         markerTail = window.takeLast(MARKER_TAIL)
-        if (REATTACH_MARKERS.none { window.contains(it) }) return
+        if (REATTACH_MARKERS.none { it.containsMatchIn(window) }) return
         markerTail = ""
+        reattachArmedUntil = 0L
+        if (now - lastAutoRedraw < AUTO_REDRAW_MIN_GAP_MS) return
+        lastAutoRedraw = now
         scope.launch {
             // Let the keeper finish its replay and hand the terminal to the program first.
             kotlinx.coroutines.delay(REATTACH_REDRAW_DELAY_MS)
@@ -357,8 +376,16 @@ class SshManager(
         private const val DEAD_PEER_SECONDS = 60
 
         /** Printed by session keepers when they re-attach to a running session. */
-        private val REATTACH_MARKERS = listOf("[s: attached to '")
-        private const val MARKER_TAIL = 64
+        private val REATTACH_MARKERS = listOf(
+            Regex("""\[s: attached to '[A-Za-z0-9_-]+' \(detach: [^)\r\n]{1,20}\)]\r?\n""")
+        )
+        private const val MARKER_TAIL = 128
+
+        /** How long after Enter a re-attach banner counts (a slow link delays it). */
+        private const val REATTACH_WATCH_MS = 20_000L
+
+        /** Never repaint automatically more often than this. */
+        private const val AUTO_REDRAW_MIN_GAP_MS = 10_000L
         private const val REATTACH_REDRAW_DELAY_MS = 400L
 
         /** Gap between the two size changes of [forceRedraw], so each gets its own SIGWINCH. */

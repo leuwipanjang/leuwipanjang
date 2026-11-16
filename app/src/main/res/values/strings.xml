@@ -77,6 +77,7 @@
         <item quantity="other">Paste %d lines? Each line will run as a command.</item>
     </plurals>
     <string name="terminal_reattached">Reattached to running session</string>
+    <string name="terminal_session_ended">Connection to %1$s closed</string>
 
     <!-- Background sessions (foreground service) -->
     <string name="session_channel_name">Active SSH sessions</string>

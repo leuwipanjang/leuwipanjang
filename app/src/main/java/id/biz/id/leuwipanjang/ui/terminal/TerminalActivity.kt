@@ -72,6 +72,8 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
 
     /** True while replaying a re-attached session's output, so its queries aren't answered twice. */
     private var isReplaying = false
+    /** True once this screen's session reached the shell; a later drop then closes it. */
+    private var sessionEstablished = false
 
     // Android 13+: the "session active" notification needs permission. Sessions keep
     // running without it; the notification is just hidden.
@@ -163,6 +165,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         val existing = SessionRegistry.get(targetHost.id)
         if (existing != null) {
             sshManager = existing
+            sessionEstablished = existing.isConnected
             val history = existing.attach(this)
             if (history.isNotEmpty()) {
                 isReplaying = true
@@ -880,6 +883,7 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     }
 
     override fun onConnected() {
+        sessionEstablished = true
         binding.viewStatusDot.setBackgroundColor(Color.parseColor("#10B981")) // Green Success
         printLocal("[Connected via ${if (host?.authType == AuthType.KEY) "Public Key" else "Password"}]\n\n")
         // The size computed before the session existed was never sent: send it now.
@@ -922,6 +926,18 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
     override fun onDisconnected() {
         binding.viewStatusDot.setBackgroundColor(Color.parseColor("#64748B")) // Grey
         printLocal("\n[Session disconnected]\n")
+        // A session that was working ended (network drop, server closed it, `exit`):
+        // go back to the host list. A failed login stays so its error can be read, and a
+        // disconnect the user asked for is already finishing.
+        if (sessionEstablished && !isFinishing) {
+            val target = host?.let { "${it.username}@${it.hostname}" }.orEmpty()
+            Toast.makeText(
+                applicationContext,
+                getString(R.string.terminal_session_ended, target),
+                Toast.LENGTH_LONG
+            ).show()
+            finish()
+        }
     }
 
     /**

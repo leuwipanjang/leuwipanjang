@@ -123,11 +123,17 @@ class SshManager(
                     "password,keyboard-interactive,publickey"
                 }
                 sess.setConfig(config)
-                sess.setServerAliveInterval(host.keepAliveSeconds * 1000)
-                sess.timeout = 15000
 
                 // Connect session
                 sess.connect(15000)
+
+                // Keep-alives, set after the handshake (setServerAliveInterval also sets the
+                // socket timeout). Only give up after ~60 s without any reply, so a short
+                // signal loss (tunnel, lift, cell handover) doesn't end the session.
+                val aliveSeconds = host.keepAliveSeconds.coerceIn(5, 60)
+                sess.setServerAliveInterval(aliveSeconds * 1000)
+                // JSch gives up after interval × (countMax + 1) seconds of silence.
+                sess.setServerAliveCountMax((DEAD_PEER_SECONDS / aliveSeconds - 1).coerceAtLeast(1))
 
                 // Open interactive shell channel
                 val ch = sess.openChannel("shell") as ChannelShell
@@ -288,5 +294,8 @@ class SshManager(
     companion object {
         /** Characters of output kept for replay when a terminal screen re-attaches. */
         private const val MAX_TRANSCRIPT = 256 * 1024
+
+        /** How long the server may stay silent before the session counts as dropped. */
+        private const val DEAD_PEER_SECONDS = 60
     }
 }

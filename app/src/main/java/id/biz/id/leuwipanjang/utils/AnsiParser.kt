@@ -117,6 +117,19 @@ class AnsiParser(private var theme: TerminalTheme) {
             renderedAlternate = emulator.isAlternateScreen
         }
 
+        val pulled = emulator.consumePulledBack()
+        if (pulled > 0) {
+            // Rows the screen took back from scrollback: drop them from the end of it.
+            if (renderedAlternate) {
+                savedScrollback?.let { it.delete(cutLastLines(it, it.length, pulled), it.length) }
+            } else {
+                val cut = cutLastLines(target, screenStart, pulled)
+                removeStyleSpans(target, cut)
+                target.delete(cut, screenStart)
+                screenStart = cut
+            }
+        }
+
         if (emulator.consumeScrollbackCleared()) {
             if (renderedAlternate) {
                 savedScrollback?.clear()
@@ -160,20 +173,29 @@ class AnsiParser(private var theme: TerminalTheme) {
         }
     }
 
+    /**
+     * Start of the last [count] lines (each ending in '\n') of text[0, end), or 0 if there
+     * are fewer.
+     */
+    private fun cutLastLines(text: CharSequence, end: Int, count: Int): Int {
+        var i = end
+        var left = count
+        while (left > 0 && i > 0) {
+            i-- // this line's '\n'
+            while (i > 0 && text[i - 1] != '\n') i--
+            left--
+        }
+        return i
+    }
+
     private fun renderScreen(): SpannableStringBuilder {
         val out = SpannableStringBuilder()
         val rows = emulator.screen
-        // Show rows down to the cursor or the last row with content; the blank rows under
-        // them would only add empty space below the prompt.
-        var last = if (emulator.cursorVisible) emulator.cursorY else 0
-        for (i in rows.indices.reversed()) {
-            if (rows[i].contentLength() > 0) {
-                last = maxOf(last, i)
-                break
-            }
-        }
+        // Always the full screen height, as a real terminal shows it: after a program clears
+        // the screen, the old output must stay out of view (up in the scrollback) instead of
+        // showing above a half-empty screen.
         val cursorRow = if (emulator.cursorVisible) emulator.cursorY else -1
-        for (i in 0..last.coerceAtMost(rows.size - 1)) {
+        for (i in rows.indices) {
             if (i > 0) out.append('\n')
             appendRow(out, rows[i], if (i == cursorRow) emulator.cursorX else -1)
         }

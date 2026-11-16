@@ -117,4 +117,34 @@ class TerminalEmulatorTest {
         t.screen.forEach { out.append(it.text()).append('\n') }
         File(System.getenv("REPLAY_OUT")).writeText(out.toString())
     }
+
+    @Test
+    fun growingPullsRowsBackFromScrollback() {
+        val t = TerminalEmulator(10, 4)
+        t.append("a\r\nb\r\nc\r\nd\r\ne")
+        assertEquals(listOf("b", "c", "d", "e"), t.lines())
+        assertEquals(listOf("a"), t.drainScrollback().map { it.text() })
+
+        t.resize(10, 2) // shrink: b and c go to scrollback (not yet drained)
+        assertEquals(listOf("d", "e"), t.lines())
+        t.resize(10, 4) // grow: b and c come back without being counted as rendered
+        assertEquals(listOf("b", "c", "d", "e"), t.lines())
+        assertEquals(3, t.cursorY) // cursor stays on "e"
+        assertEquals(0, t.consumePulledBack())
+        assertTrue(t.drainScrollback().isEmpty())
+
+        t.resize(10, 5) // "a" was already drained: the renderer must drop one line
+        assertEquals(listOf("a", "b", "c", "d", "e"), t.lines())
+        assertEquals(1, t.consumePulledBack())
+        assertEquals(4, t.cursorY)
+    }
+
+    @Test
+    fun clearedScrollbackIsNotPulledBack() {
+        val t = TerminalEmulator(10, 2)
+        t.append("a\r\nb\r\nc")
+        t.append("\u001b[3J")
+        t.resize(10, 3)
+        assertEquals(listOf("b", "c", ""), t.lines())
+    }
 }

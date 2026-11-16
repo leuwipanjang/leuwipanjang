@@ -57,7 +57,7 @@
         <!-- Interactive Terminal Activity -->
         <activity
             android:name=".ui.terminal.TerminalActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
             android:exported="false"
             android:theme="@style/Theme.LeuwiPanjang.Terminal"
             android:windowSoftInputMode="adjustResize" />

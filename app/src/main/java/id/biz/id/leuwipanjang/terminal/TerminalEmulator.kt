@@ -116,6 +116,18 @@ class TerminalEmulator(cols: Int = 80, rows: Int = 24) {
     /** Rows that scrolled off the top of the main screen since the last [drainScrollback]. */
     private val newScrollback = ArrayList<Row>()
 
+    /**
+     * The most recent rows that left the main screen, newest last, so growing the screen can
+     * pull them back like xterm / tmux do. Shares Row objects with [newScrollback].
+     */
+    private val recentHistory = ArrayDeque<Row>()
+
+    /**
+     * Rows pulled back from scrollback the renderer had already received; it removes that
+     * many lines from the end of its scrollback in [consumePulledBack].
+     */
+    private var pulledBack = 0
+
     /** Set by ED 3 / RIS; the renderer drops its scrollback once and clears the flag. */
     var scrollbackCleared = false
         private set
@@ -141,6 +153,26 @@ class TerminalEmulator(cols: Int = 80, rows: Int = 24) {
         val rows = ArrayList(newScrollback)
         newScrollback.clear()
         return rows
+    }
+
+    /** Number of already-drained scrollback rows moved back onto the screen since last call. */
+    fun consumePulledBack(): Int {
+        val n = pulledBack
+        pulledBack = 0
+        return n
+    }
+
+    private fun pushHistory(row: Row) {
+        newScrollback.add(row)
+        if (newScrollback.size > MAX_PENDING_SCROLLBACK) newScrollback.removeAt(0)
+        recentHistory.addLast(row)
+        if (recentHistory.size > MAX_PULLBACK) recentHistory.removeFirst()
+    }
+
+    private fun clearHistory() {
+        newScrollback.clear()
+        recentHistory.clear()
+        pulledBack = 0
     }
 
     fun consumeScrollbackCleared(): Boolean {
@@ -338,10 +370,7 @@ class TerminalEmulator(cols: Int = 80, rows: Int = 24) {
         val n = count.coerceAtMost(scrollBottom - scrollTop + 1)
         repeat(n) {
             val removed = buffer.removeAt(scrollTop)
-            if (!isAlternateScreen && scrollTop == 0) {
-                newScrollback.add(removed)
-                if (newScrollback.size > MAX_PENDING_SCROLLBACK) newScrollback.removeAt(0)
-            }
+            if (!isAlternateScreen && scrollTop == 0) pushHistory(removed)
             buffer.add(scrollBottom, Row(cols).also { it.clear(0, cols, blankStyle()) })
         }
     }
@@ -489,7 +518,7 @@ class TerminalEmulator(cols: Int = 80, rows: Int = 24) {
                 buffer[y].wrapped = false
             }
             3 -> {
-                newScrollback.clear()
+                clearHistory()
                 scrollbackCleared = true
             }
         }
@@ -634,7 +663,7 @@ class TerminalEmulator(cols: Int = 80, rows: Int = 24) {
         cursorX = 0
         cursorY = 0
         pendingWrap = false
-        newScrollback.clear()
+        clearHistory()
         scrollbackCleared = true
     }
 
@@ -757,9 +786,23 @@ class TerminalEmulator(cols: Int = 80, rows: Int = 24) {
             }
             while (excess > 0) {
                 val removed = rowsList.removeAt(0)
-                if (isMain) newScrollback.add(removed)
+                if (isMain) pushHistory(removed)
                 cy--
                 excess--
+            }
+            // Growing: bring back the rows that most recently scrolled off the top (as xterm
+            // and tmux do), so content stays anchored to the bottom and a full-screen
+            // program's repaint doesn't leave its old frame visible above the new one.
+            while (isMain && rowsList.size < r && recentHistory.isNotEmpty()) {
+                val row = recentHistory.removeLast()
+                if (newScrollback.isNotEmpty() && newScrollback.last() === row) {
+                    newScrollback.removeAt(newScrollback.size - 1)
+                } else {
+                    pulledBack++
+                }
+                row.resize(c)
+                rowsList.add(0, row)
+                cy++
             }
             while (rowsList.size < r) rowsList.add(Row(c))
             return cy.coerceIn(0, r - 1)
@@ -797,5 +840,6 @@ class TerminalEmulator(cols: Int = 80, rows: Int = 24) {
         private const val MAX_PARAMS_LENGTH = 256
         private const val MAX_OSC_LENGTH = 4096
         private const val MAX_PENDING_SCROLLBACK = 5000
+        private const val MAX_PULLBACK = 200
     }
 }

@@ -28,6 +28,9 @@ class SshManager(
     private val lock = Any()
     private val transcript = StringBuilder()
 
+    /** End of the previous output chunk, so a marker split across two reads is still seen. */
+    private var markerTail = ""
+
     /** Current terminal screen, or null while the session runs in the background. Main thread only. */
     private var listener: SshConnectionListener? = null
     private val closed = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -204,6 +207,7 @@ class SshManager(
                         val text = chars.toString()
                         chars.clear()
                         if (text.isEmpty()) continue
+                        watchForReattach(text)
                         // Record and pick the receiver atomically with attach(), so a screen
                         // attaching now gets each chunk exactly once (replay or callback).
                         val target = synchronized(lock) {
@@ -256,6 +260,24 @@ class SshManager(
 
     fun sendBytes(bytes: ByteArray) {
         sendChannel.trySend(bytes)
+    }
+
+    /**
+     * Session keepers without a screen model of their own (such as `s` or dtach) only replay
+     * a raw log tail when you re-attach, so a full-screen program inside keeps sending
+     * changes against a screen this terminal never saw. When such a re-attach is seen, make
+     * the program repaint, which is what opening and closing the keyboard did by hand.
+     */
+    private fun watchForReattach(text: String) {
+        val window = markerTail + text
+        markerTail = window.takeLast(MARKER_TAIL)
+        if (REATTACH_MARKERS.none { window.contains(it) }) return
+        markerTail = ""
+        scope.launch {
+            // Let the keeper finish its replay and hand the terminal to the program first.
+            kotlinx.coroutines.delay(REATTACH_REDRAW_DELAY_MS)
+            forceRedraw()
+        }
     }
 
     /** Size the server-side PTY has (or will get when the shell opens). */
@@ -333,6 +355,11 @@ class SshManager(
 
         /** How long the server may stay silent before the session counts as dropped. */
         private const val DEAD_PEER_SECONDS = 60
+
+        /** Printed by session keepers when they re-attach to a running session. */
+        private val REATTACH_MARKERS = listOf("[s: attached to '")
+        private const val MARKER_TAIL = 64
+        private const val REATTACH_REDRAW_DELAY_MS = 400L
 
         /** Gap between the two size changes of [forceRedraw], so each gets its own SIGWINCH. */
         private const val REDRAW_NUDGE_MS = 150L

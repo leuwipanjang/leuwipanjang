@@ -147,4 +147,18 @@ class TerminalEmulatorTest {
         t.resize(10, 3)
         assertEquals(listOf("b", "c", ""), t.lines())
     }
+
+    @Test
+    fun tracksMouseReportingModes() {
+        val t = TerminalEmulator(10, 2)
+        assertEquals(0, t.mouseTracking)
+        t.append("\u001b[?1049h\u001b[?1000h\u001b[?1002h\u001b[?1006h")
+        assertEquals(1002, t.mouseTracking)
+        assertTrue(t.sgrMouse)
+        t.append("\u001b[?1002l\u001b[?1006l")
+        assertEquals(0, t.mouseTracking)
+        assertFalse(t.sgrMouse)
+        t.append("\u001b[?1003h\u001bc")
+        assertEquals(0, t.mouseTracking)
+    }
 }

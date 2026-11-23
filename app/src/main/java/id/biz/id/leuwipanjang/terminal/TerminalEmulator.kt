@@ -100,6 +100,12 @@ class TerminalEmulator(cols: Int = 80, rows: Int = 24) {
         private set
     var bracketedPaste = false
         private set
+    /** Mouse reporting requested with DECSET 1000 / 1002 / 1003; 0 when off. */
+    var mouseTracking = 0
+        private set
+    /** Mouse reports use the SGR encoding (DECSET 1006). */
+    var sgrMouse = false
+        private set
     private var autoWrap = true
     private var originMode = false
     private var insertMode = false
@@ -597,8 +603,10 @@ class TerminalEmulator(cols: Int = 80, rows: Int = 24) {
                 47, 1047 -> switchScreen(enable, saveRestoreCursor = false)
                 1048 -> if (enable) saveCursor() else restoreCursor()
                 1049 -> switchScreen(enable, saveRestoreCursor = true)
+                1000, 1002, 1003 -> mouseTracking = if (enable) mode else 0
+                1006 -> sgrMouse = enable
                 2004 -> bracketedPaste = enable
-                else -> Unit // mouse reporting, focus events, synchronized output, ...
+                else -> Unit // focus events, synchronized output, ...
             }
         }
     }
@@ -657,6 +665,8 @@ class TerminalEmulator(cols: Int = 80, rows: Int = 24) {
     private fun fullReset() {
         softReset()
         bracketedPaste = false
+        mouseTracking = 0
+        sgrMouse = false
         isAlternateScreen = false
         mainScreen = MutableList(rows) { Row(cols) }
         altScreen = MutableList(rows) { Row(cols) }

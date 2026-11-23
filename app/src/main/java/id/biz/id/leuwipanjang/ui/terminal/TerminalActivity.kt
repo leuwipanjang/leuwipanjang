@@ -20,6 +20,7 @@ import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import kotlin.math.abs
 import androidx.appcompat.app.AlertDialog
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -57,6 +58,9 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         private const val HOLD_QUIET_MS = 350L
         private const val HOLD_MAX_MS = 3000L
         private const val HOLD_CHECK_MS = 100L
+
+        // One wheel event per this many text lines of finger travel.
+        private const val TOUCH_LINES_PER_WHEEL = 1
     }
 
     private lateinit var binding: ActivityTerminalBinding
@@ -580,6 +584,8 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
      *   items, so it is opened once the button is released instead.
      * - Left-button drag: enters text selection mode and hands the drag to the selectable
      *   overlay, so text can be selected the way it is on a desktop terminal.
+     * - Wheel and one-finger vertical drag: sent to the program as wheel events while it has
+     *   asked for mouse reports (see [handleTouchWheel]).
      */
     @android.annotation.SuppressLint("ClickableViewAccessibility")
     private fun setupPointerHandling() {
@@ -592,8 +598,25 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
         var startX = 0f
         var startY = 0f
 
+        // The wheel goes to the scroll view itself, not the text inside it.
+        binding.scrollTerminal.setOnGenericMotionListener { viewport, event ->
+            if (event.actionMasked != MotionEvent.ACTION_SCROLL || !ansiParser.isMouseReportingActive) {
+                return@setOnGenericMotionListener false
+            }
+            val frame = output.parent as View
+            val x = event.x + viewport.scrollX - frame.left - output.left
+            val y = event.y + viewport.scrollY - frame.top - output.top
+            // Touchpads report fractions of a notch.
+            wheelRemainder += event.getAxisValue(MotionEvent.AXIS_VSCROLL)
+            val steps = wheelRemainder.toInt()
+            wheelRemainder -= steps
+            repeat(abs(steps)) { sendWheel(up = steps > 0, x = x, y = y) }
+            true
+        }
+
         output.setOnTouchListener { view, event ->
             val isMouse = event.isFromSource(android.view.InputDevice.SOURCE_MOUSE)
+            if (!isMouse && handleTouchWheel(view, event, touchSlop)) return@setOnTouchListener true
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     rightPressed = isMouse && event.isButtonPressed(MotionEvent.BUTTON_SECONDARY)
@@ -680,6 +703,88 @@ class TerminalActivity : AppCompatActivity(), SshConnectionListener {
             }
         }
         registerForContextMenu(overlay)
+    }
+
+    // ---- Wheel for programs that read the mouse ----
+    // Full-screen programs that ask for mouse reports (Claude Code's full-screen mode, htop,
+    // ...) scroll their own content: the alternate screen has no scrollback to scroll locally.
+    // A desktop terminal sends them wheel events instead, and so does this one.
+
+    private var wheelRemainder = 0f
+    private var touchWheelActive = false
+    private var touchWheelBlocked = false
+    private var touchWheelStartY = 0f
+    private var touchWheelLastY = 0f
+
+    /** Turns a one-finger vertical drag into wheel events; true when it consumed [event]. */
+    private fun handleTouchWheel(view: View, event: MotionEvent, touchSlop: Int): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                touchWheelActive = false
+                touchWheelBlocked = !ansiParser.isMouseReportingActive
+                touchWheelStartY = event.y
+                touchWheelLastY = event.y
+                return false // taps and long-presses still work
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                // A second finger is a pinch (font size), not a scroll.
+                if (!touchWheelActive) touchWheelBlocked = true
+                return touchWheelActive
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (touchWheelBlocked) return false
+                if (!touchWheelActive) {
+                    if (abs(event.y - touchWheelStartY) <= touchSlop) return false
+                    touchWheelActive = true
+                    view.cancelLongPress()
+                    view.isPressed = false
+                    view.parent?.requestDisallowInterceptTouchEvent(true)
+                }
+                val step = (binding.tvTerminalOutput.lineHeight * TOUCH_LINES_PER_WHEEL).toFloat()
+                if (step <= 0f) return true
+                // Finger moving down shows earlier content, as a wheel turned up does.
+                while (abs(event.y - touchWheelLastY) >= step) {
+                    val up = event.y > touchWheelLastY
+                    sendWheel(up, event.x, event.y)
+                    touchWheelLastY += if (up) step else -step
+                }
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                val consumed = touchWheelActive
+                touchWheelActive = false
+                touchWheelBlocked = false
+                return consumed // a drag is not also a tap
+            }
+        }
+        return touchWheelActive
+    }
+
+    /** Sends one wheel notch at the cell under ([x], [y]) of the output view. */
+    private fun sendWheel(up: Boolean, x: Float, y: Float) {
+        val session = sshManager ?: return
+        val tv = binding.tvTerminalOutput
+        val cols = ansiParser.terminalCols
+        val rows = ansiParser.terminalRows
+        // The live screen is the last `rows` lines of the text, one line per row.
+        val row = tv.layout?.let { layout ->
+            val line = layout.getLineForVertical((y - tv.totalPaddingTop).toInt())
+            line - (layout.lineCount - rows) + 1
+        } ?: 1
+        val charWidth = tv.paint.measureText("M")
+        val col = if (charWidth > 0) ((x - tv.totalPaddingLeft) / charWidth).toInt() + 1 else 1
+        val button = if (up) 64 else 65
+        val c = col.coerceIn(1, cols)
+        val r = row.coerceIn(1, rows)
+        session.send(
+            if (ansiParser.isSgrMouseActive) {
+                "\u001b[<$button;$c;${r}M"
+            } else {
+                // X10 encoding: one byte each, so positions past 95 are clamped (ASCII only).
+                "\u001b[M" + (32 + button).toChar() + (32 + c.coerceAtMost(95)).toChar() +
+                    (32 + r.coerceAtMost(95)).toChar()
+            }
+        )
     }
 
     // ---- Text selection mode ----

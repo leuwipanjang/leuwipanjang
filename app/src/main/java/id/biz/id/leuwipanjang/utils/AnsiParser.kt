@@ -48,6 +48,8 @@ class AnsiParser(private var theme: TerminalTheme) {
     val isAlternateScreenActive: Boolean get() = emulator.isAlternateScreen
     val isApplicationCursorKeysActive: Boolean get() = emulator.applicationCursorKeys
     val isBracketedPasteActive: Boolean get() = emulator.bracketedPaste
+    val isMouseReportingActive: Boolean get() = emulator.mouseTracking != 0
+    val isSgrMouseActive: Boolean get() = emulator.sgrMouse
 
     // Visual cursor (also matched when the selection copy strips it)
     class TerminalCursorSpan(color: Int) : BackgroundColorSpan(color)

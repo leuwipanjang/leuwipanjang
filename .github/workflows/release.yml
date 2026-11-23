@@ -138,6 +138,11 @@ jobs:
             exit 1
           fi
 
+          # Same files under fixed names, so releases/latest/download/leuwipanjang.apk always
+          # points at the newest build (the landing page links there without the GitHub API).
+          cp "release-artifacts/leuwipanjang-${{ steps.tagger.outputs.tag }}.apk" release-artifacts/leuwipanjang.apk
+          cp "release-artifacts/leuwipanjang-${{ steps.tagger.outputs.tag }}.aab" release-artifacts/leuwipanjang.aab
+
       - name: Upload Artifacts to Workflow Run
         uses: actions/upload-artifact@v4
         with:
